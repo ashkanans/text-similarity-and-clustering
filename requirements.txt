@@ -1,0 +1,14 @@
+pandas
+requests
+scikit-learn
+requests
+nltk
+numpy
+matplotlib
+gensim
+plotly
+bs4
+pyspark
+kaggle
+seaborn
+torch
