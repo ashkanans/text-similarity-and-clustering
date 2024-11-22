@@ -62,7 +62,7 @@ class LSH:
 
     def s_curve_plot_and_analysis(self, jaccard_values, max_r, max_b, threshold=0.8):
         """
-        Plot S-curves showing the first, last, and all optimized (r, b) combinations.
+        Plot S-curves showing the first, last, the chosen and all (r, b) combinations.
         The last optimized combination is highlighted in red, while others are blue.
 
         :param jaccard_values: List of Jaccard similarity values.
@@ -114,7 +114,8 @@ class LSH:
                         y=probabilities,
                         mode='lines',
                         name=f'First (r={r}, b={b})',
-                        line=dict(width=2, dash='dash', color='green')
+                        line=dict(width=2, dash='dash', color='green'),
+                        legendrank=1
                     ))
 
                 # Plot the last curve
@@ -124,29 +125,31 @@ class LSH:
                         y=probabilities,
                         mode='lines',
                         name=f'Last (r={r}, b={b})',
-                        line=dict(width=2, dash='dash', color='yellow')
+                        line=dict(width=2, dash='dash', color='yellow'),
+                        legendrank=2
                     ))
 
-        # Plot all optimized (r, b) except the last one (blue, thin)
+        # Plot all (r, b) except the last one (blue, thin)
         for opt_r, opt_b in zip(self.r_list[:-1], self.b_list[:-1]):
             probabilities = 1 - np.power((1 - np.power(self.jaccard_values, opt_r)), opt_b)
             fig.add_trace(go.Scatter(
                 x=np.linspace(0, 1, len(probabilities)),
                 y=probabilities,
                 mode='lines',
-                name=f'Optimized (r={opt_r}, b={opt_b})',
-                line=dict(width=1, dash='solid', color='blue')
+                name=f'(r={opt_r}, b={opt_b})',
+                line=dict(width=1, dash='solid', color='blue'),
+                legendrank=4
             ))
 
-        # Highlight the last optimized (r, b) (red, thick)
         if last_r is not None and last_b is not None:
             probabilities = 1 - np.power((1 - np.power(self.jaccard_values, last_r)), last_b)
             fig.add_trace(go.Scatter(
                 x=np.linspace(0, 1, len(probabilities)),
                 y=probabilities,
                 mode='lines',
-                name=f'Last Optimized (r={last_r}, b={last_b})',
-                line=dict(width=4, dash='solid', color='red')
+                name=f'Optimized (r={last_r}, b={last_b})',
+                line=dict(width=4, dash='solid', color='red'),
+                legendrank=3
             ))
 
         # Add a vertical line at the threshold point
@@ -165,10 +168,10 @@ class LSH:
         fig.update_layout(
             xaxis_title='Jaccard Similarity',
             yaxis_title='Probability of becoming a candidate',
-            title=f'S-curve for First, All Optimized, and Last Optimized (r, b)',
+            title=f'S-curve for First, Last, Chosen (optimized) and all the other (r, b) pairs',
             legend=dict(x=1, y=0.5),
-            width=1200,
-            height=800
+            width=1600,
+            height=1000
         )
         print(
             f"\nFor S-curve analysis, r: {last_r} and b: {last_b} were chosen as the last optimized (highest slope).")

@@ -16,9 +16,10 @@ tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
 
 class TextPreprocessor:
-    def __init__(self, enable_multi_word_terms=True, enable_stopwords=True, enable_punctuation_removal=True,
-                 enable_joined_terms=True, enable_processing=True, enable_restoration=True):
+    def __init__(self, enable_multi_word_terms=False, enable_stopwords=True, enable_punctuation_removal=True,
+                 enable_joined_terms=False, enable_processing=False, enable_restoration=False, tokenize=False):
         # Enable or disable specific processing steps
+        self._tokenize = tokenize
         self.enable_multi_word_terms = enable_multi_word_terms
         self.enable_stopwords = enable_stopwords
         self.enable_punctuation_removal = enable_punctuation_removal
@@ -197,6 +198,13 @@ class TextPreprocessor:
         return processed_tokens
 
     def preprocess_text(self, text):
+        """
+        Preprocess the input text based on the enabled preprocessing options.
+
+        :param text: The raw input text to preprocess.
+        :return: List of tokens or a joined string, depending on `self.raw_text`.
+        """
+        # Step-by-step conditional preprocessing
         text = self.preprocess_multi_word_terms(text) if self.enable_multi_word_terms else text
         tokens = self.tokenize(text)
         tokens = self.remove_punctuation_and_symbols(tokens) if self.enable_punctuation_removal else tokens
@@ -204,4 +212,7 @@ class TextPreprocessor:
         tokens = self.remove_stopwords(tokens) if self.enable_stopwords else tokens
         tokens = self.process_tokens(tokens) if self.enable_processing else tokens
         tokens = self.restore_multi_word_terms(tokens) if self.enable_restoration else tokens
-        return tokens
+
+        # Return tokens or joined text based on `self._tokenize`
+        return " ".join(tokens) if not self._tokenize else tokens
+
