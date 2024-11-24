@@ -1,64 +1,92 @@
 import time
+from collections import defaultdict
 
 import numpy as np
 import plotly.graph_objects as go
 
 
 class LSH:
-    def __init__(self, minwise_hash_signature, shingle_comparison, num_buckets):
-        self.threshold_prob_list = []
-        self.b_list = []
-        self.r_list = []
-        self.jaccard_values = None
-        self.elapsed_time_lsh = None
-        self.candidates = None
-        self.threshold_prob = 0
-        self.r = 0
-        self.b = 0
-        self.minwise_hash_signature = minwise_hash_signature
-        self.shingle_comparison = shingle_comparison
+    def __init__(self, num_buckets):
         self.num_buckets = num_buckets
-        self.hash_tables = [{} for _ in range(minwise_hash_signature.num_hashes)]
+        self.hash_tables = [defaultdict(list) for _ in range(num_buckets)]
+        self.b = None  # Number of bands
+        self.r = None  # Rows per band
+
+    def _split_into_bands(self, signatures):
+        """
+        Splits Min-Hash signatures into bands for indexing and querying.
+        """
+        num_hashes, num_signatures = signatures.shape
+        if self.b * self.r != num_hashes:
+            raise ValueError(f"Number of hashes ({num_hashes}) must equal b * r (b={self.b}, r={self.r}).")
+
+        bands = np.array_split(signatures, self.b, axis=0)
+        return bands
 
     def index_signatures(self, signatures):
-        for i, signature in enumerate(signatures.T):
-            hash_values = self.minwise_hash_signature.hash_element(signature)
-            buckets = self.minwise_hash_signature.hash_values_to_buckets(hash_values)
-
-            for j, bucket in enumerate(buckets):
-                if bucket not in self.hash_tables[j]:
-                    self.hash_tables[j][bucket] = []
-                self.hash_tables[j][bucket].append(i)
-
-    def query_signatures(self, query_signature):
-        hash_values = self.minwise_hash_signature.hash_element(query_signature)
-        buckets = self.minwise_hash_signature.hash_values_to_buckets(hash_values)
-
-        candidate_sets = set()
-        for i, bucket in enumerate(buckets):
-            if bucket in self.hash_tables[i]:
-                candidate_sets.update(self.hash_tables[i][bucket])
-
-        return candidate_sets
-
-    def find_near_duplicates(self, shingles):
+        """
+        Indexes the Min-Hash signatures into hash tables based on bands.
+        """
         start_time = time.time()
-        signatures = self.minwise_hash_signature.generate_signatures(shingles)
-        self.index_signatures(signatures)
+        bands = self._split_into_bands(signatures)
 
-        # Perform LSH query for a specific document (e.g., the first document)
-        query_signature = signatures[:, 0]
-        candidates = self.query_signatures(query_signature)
-        end_time = time.time()
-        print("LSH Near Duplicates:", candidates)
-        elapsed_time_lsh = end_time - start_time
-        self.candidates = candidates
-        self.elapsed_time_lsh = elapsed_time_lsh
+        for band_idx, band in enumerate(bands):
+            for doc_idx, band_signature in enumerate(band.T):  # Transpose for per-document
+                bucket = tuple(band_signature)
+                self.hash_tables[band_idx][bucket].append(doc_idx)
 
-    def set_r_b_values(self, r, b, threshold_prob):
+        elapsed_time = time.time() - start_time
+        print(f"Indexing completed in {elapsed_time:.2f} seconds.")
+
+    def query_signature(self, query_signature):
+        """
+        Queries the hash tables for candidates of a given query signature.
+        """
+        bands = self._split_into_bands(query_signature[:, None])  # Add axis for consistency
+
+        candidate_set = set()
+        for band_idx, band_signature in enumerate(bands):
+            bucket = tuple(band_signature.flatten())
+            candidate_set.update(self.hash_tables[band_idx].get(bucket, []))
+
+        return candidate_set
+
+    def find_near_duplicates(self, signatures, threshold=0.8):
+        """
+        Finds near-duplicates for all signatures.
+        """
+        start_time = time.time()
+        candidates = defaultdict(list)
+
+        for query_idx, query_signature in enumerate(signatures.T):
+            candidate_indices = self.query_signature(query_signature)
+
+            for candidate_idx in candidate_indices:
+                if query_idx != candidate_idx:  # Avoid self-comparison
+                    # Calculate Jaccard similarity
+                    jaccard_sim = self._calculate_jaccard_similarity(
+                        signatures[:, query_idx], signatures[:, candidate_idx]
+                    )
+                    if jaccard_sim >= threshold:
+                        candidates[query_idx].append((candidate_idx, jaccard_sim))
+
+        elapsed_time = time.time() - start_time
+        print(f"Near-duplicate detection completed in {elapsed_time:.2f} seconds.")
+        return candidates
+
+    @staticmethod
+    def _calculate_jaccard_similarity(signature1, signature2):
+        """
+        Calculates Jaccard similarity between two Min-Hash signatures.
+        """
+        return np.sum(signature1 == signature2) / len(signature1)
+
+    def set_r_b_values(self, r, b):
+        """
+        Sets the number of rows per band (r) and the number of bands (b).
+        """
         self.r = r
         self.b = b
-        self.threshold_prob = threshold_prob
 
     def s_curve_plot_and_analysis(self, jaccard_values, max_r, max_b, threshold=0.8):
         """
@@ -181,24 +209,9 @@ class LSH:
         if last_r is not None and last_b is not None:
             probabilities = 1 - np.power((1 - np.power(self.jaccard_values, last_r)), last_b)
             threshold_index = int(threshold * len(probabilities))
-            self.set_r_b_values(last_r, last_b, probabilities[threshold_index])
+            self.set_r_b_values(last_r, last_b)
         else:
             print("No suitable r and b were found that meet the criteria.")
-
-    def choose_r_b_values(self, threshold_prob):
-        # Choose r and b values based on the given threshold probability
-
-        for r_candidate in range(1, self.minwise_hash_signature.num_hashes + 1):
-            for b_candidate in range(1, self.minwise_hash_signature.num_hashes // r_candidate + 1):
-                # Calculate the expected threshold probability for the given r and b
-                expected_prob = 1 - (1 - threshold_prob ** r_candidate) ** b_candidate
-
-                # Check if the expected probability is close enough to the given threshold probability
-                if abs(expected_prob - threshold_prob) < 0.01:
-                    self.r = r_candidate
-                    self.b = b_candidate
-                    self.threshold_prob = expected_prob
-                    return
 
 
 def find_threshold_intersection(probabilities, threshold):
