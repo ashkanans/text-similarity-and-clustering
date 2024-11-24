@@ -1,5 +1,6 @@
 import time
 import pandas as pd
+from tqdm import tqdm
 
 
 def jaccard_similarity(set1, set2):
@@ -33,6 +34,10 @@ class ShingleComparison:
         self.threshold = threshold
         self.shingle_length = shingle_length
 
+    from tqdm import tqdm
+    import pandas as pd
+    import time
+
     def compare_shingle_sets(self, shingles, descriptions):
         """
         Compare all pairs of shingle sets and identify near-duplicates based on Jaccard similarity.
@@ -48,20 +53,31 @@ class ShingleComparison:
         jaccard_values = []
         start_time = time.time()
 
-        for i, shingle_set1 in enumerate(shingles):
-            for j, shingle_set2 in enumerate(shingles[i + 1:]):
-                # Ensure shingle_set1 and shingle_set2 are sets
-                if not isinstance(shingle_set1, set):
-                    shingle_set1 = set(shingle_set1)
-                if not isinstance(shingle_set2, set):
-                    shingle_set2 = set(shingle_set2)
+        # Total comparisons: n * (n - 1) / 2 (triangular loop)
+        num_comparisons = len(shingles) * (len(shingles) - 1) // 2
 
-                jaccard_sim = jaccard_similarity(shingle_set1, shingle_set2)
-                jaccard_values.append(jaccard_sim)
-                if jaccard_sim >= self.threshold:
-                    description1 = descriptions[i]
-                    description2 = descriptions[i + 1 + j]
-                    near_duplicates.append((description1, description2, jaccard_sim))
+        # Use tqdm to display progress
+        with tqdm(total=num_comparisons, desc="Comparing shingles") as progress_bar:
+            for i, shingle_set1 in enumerate(shingles):
+                for j, shingle_set2 in enumerate(shingles[i + 1:]):
+                    # Ensure shingle_set1 and shingle_set2 are sets
+                    if not isinstance(shingle_set1, set):
+                        shingle_set1 = set(shingle_set1)
+                    if not isinstance(shingle_set2, set):
+                        shingle_set2 = set(shingle_set2)
+
+                    # Compute Jaccard similarity
+                    jaccard_sim = jaccard_similarity(shingle_set1, shingle_set2)
+                    jaccard_values.append(jaccard_sim)
+
+                    # Check threshold for near-duplicates
+                    if jaccard_sim >= self.threshold:
+                        description1 = descriptions[i]
+                        description2 = descriptions[i + 1 + j]
+                        near_duplicates.append((description1, description2, jaccard_sim))
+
+                    # Update the progress bar
+                    progress_bar.update(1)
 
         end_time = time.time()
         self.elapsed_time = end_time - start_time
