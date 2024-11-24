@@ -57,18 +57,40 @@ def get_headers():
     return headers
 
 
-def save_results(args, shingle_comparison):
+import pandas as pd
+import datetime
+import os
+
+
+def save_results(args, comparison_results, output_file=None):
     """
     Saves similarity analysis results to a CSV file.
-    """
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    output_file_with_timestamp = f"{args.output.rsplit('.', 1)[0]}_{timestamp}.csv"
-    print(f"Saving results to {output_file_with_timestamp}...")
 
-    args_dict = vars(args)
-    args_df = pd.DataFrame([args_dict])
-    combined_df = pd.concat([args_df, shingle_comparison.df], ignore_index=True)
-    combined_df.to_csv(output_file_with_timestamp, index=False)
+    Args:
+        args (argparse.Namespace): The command-line arguments containing configuration settings.
+        comparison_results (ShingleComparison): An object containing the results of the similarity analysis.
+        output_file (str, optional): The path to save the results file. If None, the path is constructed from args.output.
+
+    Returns:
+        None
+    """
+    # Generate a timestamp for unique file naming
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    # Construct the output file path
+    if not output_file:
+        base_output = args.output.rsplit('.', 1)[0]
+        output_file = f"{base_output}_{timestamp}.csv"
+
+    print(f"Saving results to {output_file}...")
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+    # Save the combined DataFrame to CSV
+    comparison_results.df.to_csv(output_file, index=False)
+
+    print("Results successfully saved.")
 
 
 def generate_shingles(descriptions, k, tokenized):
@@ -101,7 +123,7 @@ def preprocess_descriptions(df, tokenize=False, filter_descriptions=False):
     unique_descriptions = set()
 
     if df is not None:
-        for description in df['Description']:
+        for description in df['description']:
             processed_tokens = text_preprocessor.preprocess_text(description)
             description_tuple = tuple(processed_tokens)
 

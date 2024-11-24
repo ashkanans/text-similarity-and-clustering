@@ -1,15 +1,17 @@
 import argparse
 import os
+import time
 
 import numpy as np
+import pandas as pd
 
 from text_similarity.scraping.amazon_scraper import AmazonScraper
 from text_similarity.scraping.data_processing import load_dataset
-from text_similarity.scraping.visualization import plot_token_length_distribution
 
 from text_similarity.minwise_hash_signatures import MinwiseHashSignature
 from text_similarity.lsh import LSH
 from text_similarity.shingle_comparison import ShingleComparison
+from text_similarity.text_processing.data_sketch_lsh import DataSketchLSH
 
 from utils.utils import save_results, generate_shingles, preprocess_descriptions
 
@@ -23,14 +25,13 @@ def parse_arguments():
     parser.add_argument("--keyword", type=str, default="computer, pc, portatile, laptop",
                         help="Keywords for Amazon search, separated by commas.")
     parser.add_argument("--num_pages", type=int, default=10, help="Number of pages to scrape.")
-    parser.add_argument("--path", type=str, default=os.path.join('data', 'raw', 'computer_results_2024-11-22.tsv'),
+    parser.add_argument("--path", type=str, default=os.path.join('data', 'raw', 'laptops_results_2024-11-23.tsv'),
                         help="TSV file path for Amazon products.")
     parser.add_argument("--k", type=int, default=10, help="Shingle length.")
     parser.add_argument("--threshold", type=float, default=0.80, help="Jaccard similarity threshold.")
-    parser.add_argument("--num_hashes", type=int, default=100, help="Number of hash functions for MinHash.")
     parser.add_argument("--output", type=str, default=os.path.join('data', 'processed', 'near_duplicates.csv'),
                         help="Output file path for near duplicates.")
-    parser.add_argument("--tokenize", action="store_true", default=True,
+    parser.add_argument("--tokenize", action="store_true", default=False,
                         help="Flag to tokenize descriptions and return tokenized data.")
     parser.add_argument("--max_r", type=int, default=50, help="Maximum number of rows for LSH S-curve analysis.")
     parser.add_argument("--max_b", type=int, default=50, help="Maximum number of bands for LSH S-curve analysis.")
@@ -58,30 +59,141 @@ def load_or_scrape_data(args):
     df = load_dataset(data_path)
     return df
 
+def dict_to_dataframe(input_dict, key_name="Key", value_name="Value"):
+    """
+    Converts a dictionary or defaultdict into a pandas DataFrame.
 
-def perform_similarity_analysis(shingles_list, df, args):
+    Args:
+        input_dict (dict or defaultdict): The input dictionary-like object.
+        key_name (str): The column name for dictionary keys.
+        value_name (str): The column name for dictionary values.
+
+    Returns:
+        pd.DataFrame: A DataFrame representing the dictionary.
     """
-    Performs similarity analysis using MinHash and LSH.
+    rows = []
+    for key, value in input_dict.items():
+        # If the value is iterable (like a list), create multiple rows
+        if isinstance(value, (list, set, tuple)):
+            for item in value:
+                rows.append({key_name: key, value_name: item})
+        else:
+            # Single key-value pair
+            rows.append({key_name: key, value_name: value})
+
+    return pd.DataFrame(rows)
+
+
+
+def perform_lsh_similarity_analysis(shingles_list, args):
     """
-    print("Generating MinHash signatures...")
-    minwise = MinwiseHashSignature(num_hashes=args.num_hashes, num_elements=len(shingles_list), signature_length=args.k)
+    Performs similarity analysis using MinHash and Locality-Sensitive Hashing (LSH).
+
+    Args:
+        shingles_list (list of sets): A list of shingle sets for all documents.
+        args (argparse.Namespace): Command-line arguments including configuration settings.
+
+    Returns:
+        None
+    """
+    start_time = time.time()
+
+
 
     print("Performing parameter tuning with S-curve analysis...")
-    shingle_comparison = ShingleComparison(threshold=args.threshold, shingle_length=args.k)
-    lsh = LSH(minwise_hash_signature=minwise, shingle_comparison=shingle_comparison, num_buckets=10)
+    lsh = LSH(num_buckets=10)
 
+    # Optimize (r, b) parameters with S-curve analysis
     jaccard_values = np.linspace(0, 1, 100)
-    lsh.s_curve_plot_and_analysis(jaccard_values=jaccard_values, max_r=args.max_r, max_b=args.max_b,
-                                  threshold=args.threshold)
-    print(f"Optimal parameters: r={lsh.r}, b={lsh.b}, threshold_prob={lsh.threshold_prob:.2f}")
+    lsh.s_curve_plot_and_analysis(
+        jaccard_values=jaccard_values,
+        max_r=args.max_r,
+        max_b=args.max_b,
+        threshold=args.threshold
+    )
+    print(f"Optimal parameters: r={lsh.r}, b={lsh.b}")
 
+    # Perform LSH
     print("Performing Locality Sensitive Hashing (LSH)...")
-    lsh.set_r_b_values(r=lsh.r, b=lsh.b, threshold_prob=args.threshold)
-    lsh.find_near_duplicates(shingles_list)
+    # lsh.set_r_b_values(r=lsh.r, b=lsh.b)
+    # fix r and b to a low value for testing
+    lsh.set_r_b_values(r=3, b=3)
 
-    print("Comparing all pairs of shingles for near duplicates...")
-    shingle_comparison.compare_shingle_sets(shingles_list, df['Description'].tolist())
-    save_results(args, shingle_comparison)
+    # Generate MinHash signatures
+    minwise_hash_signature = MinwiseHashSignature(num_hashes=lsh.r * lsh.b, num_elements=len(shingles_list))
+    signatures = minwise_hash_signature.generate_signatures(shingles_list)
+
+    candidates_dict = lsh.find_near_duplicates(signatures)
+
+    candidates_df = dict_to_dataframe(candidates_dict)
+    # Save results
+    output_file = os.path.join(os.path.dirname(args.output), "near_duplicates_lsh.csv")
+    save_results(args, candidates_df, output_file)
+
+    elapsed_time = time.time() - start_time
+    print(f"LSH similarity analysis completed in {elapsed_time:.2f} seconds.")
+    print(f"Number of near duplicates found using LSH: {len(candidates)}")
+    print(f"Results saved to: {output_file}")
+
+
+def perform_naive_similarity_analysis(shingles_list, processed_data, args):
+    """
+    Performs similarity analysis by comparing all pairs of shingles (brute force).
+
+    Args:
+        shingles_list (list of sets): A list of shingle sets for all documents.
+        processed_data (list): A list where each element is a product description.
+                               Tokenized (list of words) if args.tokenize is True, raw strings otherwise.
+        args (argparse.Namespace): Command-line arguments including configuration settings.
+
+    Returns:
+        None
+    """
+    start_time = time.time()
+
+    # Prepare descriptions based on tokenization
+    descriptions = [" ".join(desc) for desc in processed_data] if args.tokenize else processed_data
+
+    # Initialize ShingleComparison
+    shingle_comparison = ShingleComparison(threshold=args.threshold, shingle_length=args.k)
+    shingle_comparison.compare_shingle_sets(shingles_list, descriptions)
+
+    # Save results
+    output_file = os.path.join(os.path.dirname(args.output), "near_duplicates_naive.csv")
+    save_results(args, shingle_comparison, output_file)
+
+    elapsed_time = time.time() - start_time
+    num_duplicates = len(shingle_comparison.df)
+    print(f"Naïve similarity analysis completed in {elapsed_time:.2f} seconds.")
+    print(f"Number of near duplicates found using naïve method: {num_duplicates}")
+    print(f"Results saved to: {output_file}")
+
+
+def perform_datasketch_similarity_analysis(shingles_list, args):
+    """
+    Performs similarity analysis using the DataSketch library for MinHash and LSH.
+
+    Args:
+        shingles_list (list of sets): A list of shingle sets for all documents.
+        args (argparse.Namespace): Command-line arguments including configuration settings.
+
+    Returns:
+        None
+    """
+    start_time = time.time()
+
+    # Initialize DataSketch LSH
+    lsh = DataSketchLSH(threshold=args.threshold, num_perm=args.num_hashes)
+    lsh.add_shingles_list(shingles_list)
+
+    # Save results
+    output_file = os.path.join(os.path.dirname(args.output), "near_duplicates_data_sketch.csv")
+    num_duplicates = lsh.find_near_duplicates(args)
+
+    elapsed_time = time.time() - start_time
+    print(f"DataSketch similarity analysis completed in {elapsed_time:.2f} seconds.")
+    print(f"Number of near duplicates found using DataSketch: {num_duplicates}")
+    print(f"Results saved to: {output_file}")
 
 
 def main():
@@ -94,8 +206,14 @@ def main():
     print("Generating shingles...")
     shingles_list = generate_shingles(processed_data, args.k, args.tokenize)
 
-    print("Performing similarity analysis...")
-    perform_similarity_analysis(shingles_list, processed_data, args)
+    print("\nStep 1. Performing similarity analysis using LSH technique...")
+    perform_lsh_similarity_analysis(shingles_list, args)
+
+    # print("\nStep 2. Performing similarity analysis using naïve technique...")
+    # perform_naive_similarity_analysis(shingles_list, processed_data, args)
+
+    # print("\nStep 3. Performing similarity analysis using DataSketch...")
+    # perform_datasketch_similarity_analysis(shingles_list, args)
 
 
 if __name__ == "__main__":
