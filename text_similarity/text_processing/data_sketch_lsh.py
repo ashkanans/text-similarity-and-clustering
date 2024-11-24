@@ -1,9 +1,8 @@
-import csv
-import datetime
 import os
 
 import pandas as pd
 from datasketch import MinHash, MinHashLSH
+from tqdm import tqdm
 
 
 class DataSketchLSH:
@@ -29,12 +28,14 @@ class DataSketchLSH:
             shingles_list (list of sets): List of sets, where each set represents the shingles of a document.
         """
         self.shingles_list = shingles_list
-        for i, shingles in enumerate(shingles_list):
-            minhash = MinHash(num_perm=self.num_perm)
-            for shingle in shingles:
-                minhash.update(shingle.encode('utf-8'))
-            self.minhashes.append(minhash)
-            self.lsh.insert(f"doc_{i}", minhash)
+        with tqdm(total=len(shingles_list), desc="Adding shingles to LSH") as progress_bar:
+            for i, shingles in enumerate(shingles_list):
+                minhash = MinHash(num_perm=self.num_perm)
+                for shingle in shingles:
+                    minhash.update(shingle.encode('utf-8'))
+                self.minhashes.append(minhash)
+                self.lsh.insert(f"doc_{i}", minhash)
+                progress_bar.update(1)  # Update the progress bar after each iteration
 
     def find_near_duplicates(self, args):
         """
@@ -75,4 +76,4 @@ class DataSketchLSH:
 
         results_df.to_csv(output_file_with_timestamp, index=False)
 
-        return len(results)
+        return len(results), results_df

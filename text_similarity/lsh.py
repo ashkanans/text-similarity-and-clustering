@@ -59,6 +59,7 @@ class LSH:
         candidates = defaultdict(list)
 
         for query_idx, query_signature in enumerate(signatures.T):
+
             candidate_indices = self.query_signature(query_signature)
 
             for candidate_idx in candidate_indices:

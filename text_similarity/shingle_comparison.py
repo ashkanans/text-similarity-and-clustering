@@ -1,4 +1,5 @@
 import time
+
 import pandas as pd
 from tqdm import tqdm
 
@@ -34,10 +35,6 @@ class ShingleComparison:
         self.threshold = threshold
         self.shingle_length = shingle_length
 
-    from tqdm import tqdm
-    import pandas as pd
-    import time
-
     def compare_shingle_sets(self, shingles, descriptions):
         """
         Compare all pairs of shingle sets and identify near-duplicates based on Jaccard similarity.
@@ -47,7 +44,7 @@ class ShingleComparison:
             descriptions (list of str): Original descriptions corresponding to each set.
 
         Returns:
-            None: Results are stored in the class attributes.
+            None: Results are stored in the class attributes as a DataFrame with indices.
         """
         near_duplicates = []
         jaccard_values = []
@@ -72,9 +69,7 @@ class ShingleComparison:
 
                     # Check threshold for near-duplicates
                     if jaccard_sim >= self.threshold:
-                        description1 = descriptions[i]
-                        description2 = descriptions[i + 1 + j]
-                        near_duplicates.append((description1, description2, jaccard_sim))
+                        near_duplicates.append((i, i + 1 + j, round(jaccard_sim, 2)))
 
                     # Update the progress bar
                     progress_bar.update(1)
@@ -84,4 +79,4 @@ class ShingleComparison:
         self.jaccard_values = jaccard_values
 
         # Create a DataFrame from the list of near-duplicates
-        self.df = pd.DataFrame(near_duplicates, columns=['Description 1', 'Description 2', 'Jaccard Similarity'])
+        self.df = pd.DataFrame(near_duplicates, columns=['Document 1 Index', 'Document 2 Index', 'Jaccard Similarity'])
