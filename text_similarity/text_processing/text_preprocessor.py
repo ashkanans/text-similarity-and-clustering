@@ -16,8 +16,8 @@ tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
 
 class TextPreprocessor:
-    def __init__(self, enable_multi_word_terms=False, enable_stopwords=True, enable_punctuation_removal=True,
-                 enable_joined_terms=False, enable_processing=False, enable_restoration=False, tokenize=False):
+    def __init__(self, enable_multi_word_terms=True, enable_stopwords=True, enable_punctuation_removal=True,
+                 enable_joined_terms=True, enable_processing=True, enable_restoration=True, tokenize=True):
         # Enable or disable specific processing steps
         self._tokenize = tokenize
         self.enable_multi_word_terms = enable_multi_word_terms
@@ -38,7 +38,7 @@ class TextPreprocessor:
 
         # Custom list of words to retain in their original form
         self.preserved_words = {'laptop', 'portatile', 'office', 'windows', 'intel', 'amd', 'mouse', 'computer',
-                                'home', 'pc', 'personal computer', 'apple', 'mac'}
+                                'home', 'pc', 'personal computer', 'apple', 'mac', 'led', 'amoled'}
 
         # Multi-word terms to preserve as single tokens
         self.multi_word_terms = [
@@ -55,7 +55,8 @@ class TextPreprocessor:
 
             # Processor Models
                                                                                       "intel core i3", "core i3",
-            "intel core i5", "core i5", "intel core i7", "core i7", "intel core i9", "core i9",
+            "intel core i5", "core i5", "intel core i7", "core i7", "intel core i9", "core i9", "intel core ultra 5",
+            "intel core ultra 7", "intel core ultra 9"
             "amd ryzen 3", "amd ryzen 5", "amd ryzen 7", "amd ryzen 9",
             "apple m1", "apple m2",
 
@@ -102,7 +103,14 @@ class TextPreprocessor:
 
             # PC Types
                                                                               "mini pc", "mini computer",
-            "mini desktop", "pc portatile", "all in one", "pronto all'uso"
+            "mini desktop", "pc portatile", "all in one", "pronto all'uso",
+
+            # Brands
+            "asus",
+
+            # USB types
+            'usb', 'usb-c', 'usb_3.0', 'usb_2.0', 'usb_3.1', 'usb_3.2', 'usb_4.0', 'thunderbolt',
+            'usb_type_c', 'usb_type_a', 'usb_type_b'
         ]
 
     def preprocess_multi_word_terms(self, text):
@@ -119,21 +127,34 @@ class TextPreprocessor:
     def tokenize(self, text):
         return word_tokenize(text)
 
+    def expand_abbreviations(self, text):
+        abbreviation_map = {
+            "fhd": "full hd",
+            "uhd": "ultra hd",
+            "qhd": "quad hd",
+        }
+        for abbr, expanded in abbreviation_map.items():
+            text = re.sub(r'\b' + abbr + r'\b', expanded, text, flags=re.IGNORECASE)
+        return text
+
     def remove_punctuation_and_symbols(self, tokens):
         """
-        Removes punctuation and symbols from tokens, retains alphanumeric units, and separates numbers from letters.
+        Removes punctuation and symbols while preserving numeric values with decimals
+        (e.g., 15.6) and units like '15.6_inch' or 'usb_3.0'.
         """
-        if not self.enable_punctuation_removal:
-            return tokens
         cleaned_tokens = []
         for token in tokens:
-            cleaned_token = re.sub(r"[^\w\s]", "", token)
-            if cleaned_token.isdigit() or cleaned_token.lower() in self.unit_keywords:
-                continue
-            if re.match(r"\d+[a-zA-Z]+", cleaned_token):
-                cleaned_tokens.append(cleaned_token.lower())
-            elif cleaned_token:
-                cleaned_tokens.append(cleaned_token.lower())
+            # Preserve numeric values with decimals or underscores (e.g., 15.6_inch, usb_3.0)
+            if re.match(r'^\d+(\.\d+)?(_[a-zA-Z]+)?$', token):
+                cleaned_tokens.append(token)
+            # Preserve alphanumeric tokens (e.g., i5-1335u)
+            elif re.match(r'^[a-zA-Z0-9\-_\.]+$', token):
+                cleaned_tokens.append(token.lower())
+            else:
+                # Remove all other non-alphanumeric symbols
+                cleaned_token = re.sub(r"[^\w\s]", "", token)
+                if cleaned_token:
+                    cleaned_tokens.append(cleaned_token.lower())
         return cleaned_tokens
 
     def handle_joined_terms(self, tokens):
@@ -170,32 +191,49 @@ class TextPreprocessor:
     def process_tokens(self, tokens):
         """
         Process tokens using lemmatization for preserved words and stemming for others.
-        :param tokens: list of str, input tokens
-        :return: list of str, processed tokens
         """
         if not self.enable_processing:
             return tokens
+
         processed_tokens = []
         for token in tokens:
-            if token.lower() in self.preserved_words:
-                processed_tokens.append(self.lemmatizer.lemmatize(token))
+            # Check if the lowercase version of the token is in preserved words
+            if token.lower() in self.preserved_words or token.lower() in self.multi_word_terms:
+                processed_tokens.append(token)  # Keep the original token as is
             else:
+                # Apply stemming to other tokens
                 processed_tokens.append(self.stemmer.stem(token))
         return processed_tokens
 
     def restore_multi_word_terms(self, tokens):
         """
         Restore underscores to spaces for multi-word terms that were preserved.
+        This method should not process tokens with stemming or lemmatization again.
         """
         if not self.enable_processing:
             return tokens
+
         processed_tokens = []
         for token in tokens:
-            if token.lower() in self.preserved_words:
-                processed_tokens.append(self.lemmatizer.lemmatize(token))
+            # Check if the token is part of preserved words or a restored multi-word term
+            if "_" in token:
+                processed_tokens.append(token.replace("_", " "))  # Restore underscores to spaces
             else:
-                processed_tokens.append(self.stemmer.stem(token))
+                processed_tokens.append(token)  # Leave the token as is
+
         return processed_tokens
+
+    def normalize_monitor_sizes(self, text):
+        """
+        Standardize and preserve monitor sizes, avoiding false positives like '4.6 GHz'.
+        """
+        # Replace commas with dots for decimal consistency
+        text = re.sub(r'(\d+),(\d+)', r'\1.\2', text)
+
+        # Match numeric patterns followed by "pollici" or "inch"
+        text = re.sub(r'\b(\d+\.\d+)\s*(pollici|inch)\b', r'\1_inch', text, flags=re.IGNORECASE)
+
+        return text
 
     def preprocess_text(self, text):
         """
@@ -206,6 +244,8 @@ class TextPreprocessor:
         """
         # Step-by-step conditional preprocessing
         text = self.preprocess_multi_word_terms(text) if self.enable_multi_word_terms else text
+        text = self.expand_abbreviations(text)
+        text = self.normalize_monitor_sizes(text)
         tokens = self.tokenize(text)
         tokens = self.remove_punctuation_and_symbols(tokens) if self.enable_punctuation_removal else tokens
         tokens = self.handle_joined_terms(tokens) if self.enable_joined_terms else tokens
@@ -215,4 +255,3 @@ class TextPreprocessor:
 
         # Return tokens or joined text based on `self._tokenize`
         return " ".join(tokens) if not self._tokenize else tokens
-
