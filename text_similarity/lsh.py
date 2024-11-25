@@ -64,7 +64,6 @@ class LSH:
 
             for candidate_idx in candidate_indices:
                 if query_idx != candidate_idx:  # Avoid self-comparison
-                    # Calculate Jaccard similarity
                     jaccard_sim = self._calculate_jaccard_similarity(
                         signatures[:, query_idx], signatures[:, candidate_idx]
                     )

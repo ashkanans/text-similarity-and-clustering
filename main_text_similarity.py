@@ -3,6 +3,7 @@ import os
 import time
 
 import numpy as np
+import pandas as pd
 
 from text_similarity.lsh import LSH
 from text_similarity.minwise_hash_signatures import MinwiseHashSignature
@@ -32,8 +33,9 @@ def parse_arguments():
                         help="Output file path for near duplicates.")
     parser.add_argument("--tokenize", action="store_true", default=False,
                         help="Flag to tokenize descriptions and return tokenized data.")
-    parser.add_argument("--max_r", type=int, default=10, help="Maximum number of rows for LSH S-curve analysis.")
-    parser.add_argument("--max_b", type=int, default=10, help="Maximum number of bands for LSH S-curve analysis.")
+    parser.add_argument("--max_r", type=int, default=20, help="Maximum number of rows for LSH S-curve analysis.")
+    parser.add_argument("--max_b", type=int, default=20, help="Maximum number of bands for LSH S-curve analysis.")
+    parser.add_argument("--plot", type=int, default=False, help="Plot the comparison charts for the methods")
 
     args = parser.parse_args()
     return args
@@ -57,9 +59,6 @@ def load_or_scrape_data(args):
     print(f"Loading data from {data_path}...")
     df = load_dataset(data_path)
     return df
-
-
-import pandas as pd
 
 
 def dict_to_dataframe(input_dict):
@@ -102,7 +101,7 @@ def perform_lsh_similarity_analysis(shingles_list, args):
     start_time = time.time()
 
     print("Performing parameter tuning with S-curve analysis...")
-    lsh = LSH(num_buckets=10)
+    lsh = LSH(num_buckets=100)
 
     # Optimize (r, b) parameters with S-curve analysis
     jaccard_values = np.linspace(0, 1, 100)
@@ -135,7 +134,7 @@ def perform_lsh_similarity_analysis(shingles_list, args):
     candidates_dict = lsh.find_near_duplicates(signatures, threshold=args.threshold)
 
     candidates_df = dict_to_dataframe(candidates_dict)
-    # Save results
+
     output_file = os.path.join(os.path.dirname(args.output), "near_duplicates_lsh.csv")
     save_results(args, candidates_df, output_file)
 
@@ -161,14 +160,11 @@ def perform_naive_similarity_analysis(shingles_list, processed_data, args):
     """
     start_time = time.time()
 
-    # Prepare descriptions based on tokenization
     descriptions = [" ".join(desc) for desc in processed_data] if args.tokenize else processed_data
 
-    # Initialize ShingleComparison
     shingle_comparison = ShingleComparison(threshold=args.threshold, shingle_length=args.k)
     shingle_comparison.compare_shingle_sets(shingles_list, descriptions)
 
-    # Save results
     output_file = os.path.join(os.path.dirname(args.output), "near_duplicates_naive.csv")
     save_results(args, shingle_comparison, output_file)
 
@@ -193,11 +189,9 @@ def perform_datasketch_similarity_analysis(shingles_list, args):
     """
     start_time = time.time()
 
-    # Initialize DataSketch LSH
-    lsh = DataSketchLSH(threshold=args.threshold, num_perm=1000)
+    lsh = DataSketchLSH(threshold=args.threshold, num_perm=320)
     lsh.add_shingles_list(shingles_list)
 
-    # Save results
     output_file = os.path.join(os.path.dirname(args.output), "near_duplicates_data_sketch.csv")
     num_duplicates, results_df = lsh.find_near_duplicates(args)
 
@@ -227,42 +221,45 @@ def main():
     print("\nStep 3. Performing similarity analysis using DataSketch...")
     datasketch_df = perform_datasketch_similarity_analysis(shingles_list, args)
 
-    # Evaluate methods
-    metrics = evaluate_methods(naive_df, lsh_df, datasketch_df)
+    if args.plot:
+        # Evaluate methods
+        metrics = evaluate_methods(naive_df, lsh_df, datasketch_df)
 
-    # Plot metrics
-    plot_metrics(metrics)
+        # Plot metrics
+        plot_metrics(metrics)
 
-    # Plot Venn diagrams
-    naive_pairs = set(naive_df[["Document 1 Index", "Document 2 Index"]].itertuples(index=False, name=None))
-    lsh_pairs = set(lsh_df[["Document 1 Index", "Document 2 Index"]].itertuples(index=False, name=None))
-    datasketch_pairs = set(datasketch_df[["Document 1 Index", "Document 2 Index"]].itertuples(index=False, name=None))
+        # Plot Venn diagrams
+        naive_pairs = set(naive_df[["Document 1 Index", "Document 2 Index"]].itertuples(index=False, name=None))
+        lsh_pairs = set(lsh_df[["Document 1 Index", "Document 2 Index"]].itertuples(index=False, name=None))
+        datasketch_pairs = set(
+            datasketch_df[["Document 1 Index", "Document 2 Index"]].itertuples(index=False, name=None))
 
-    plot_venn_diagram(naive_pairs, lsh_pairs, "LSH")
-    plot_venn_diagram(naive_pairs, datasketch_pairs, "DataSketch")
+        plot_venn_diagram(naive_pairs, lsh_pairs, "LSH")
+        plot_venn_diagram(naive_pairs, datasketch_pairs, "DataSketch")
 
-    plot_heatmap(datasketch_df=datasketch_df, naive_df=naive_df, lsh_df=lsh_df)
+        plot_heatmap(datasketch_df=datasketch_df, naive_df=naive_df, lsh_df=lsh_df)
 
-    plot_cumulative_distribution(
-        [naive_df, lsh_df, datasketch_df],
-        labels=["Naïve (brute-force)", "LSH", "DataSketch"],
-        title="Cumulative Distribution of Jaccard Similarities"
-    )
+        plot_cumulative_distribution(
+            [naive_df, lsh_df, datasketch_df],
+            labels=["Naïve (brute-force)", "LSH", "DataSketch"],
+            title="Cumulative Distribution of Jaccard Similarities"
+        )
 
-    plot_precision_recall(metrics)
+        plot_precision_recall(metrics)
 
-    plot_similarity_distribution(
-        [naive_df, lsh_df, datasketch_df],
-        labels=["Naïve (brute-force)", "LSH", "DataSketch"],
-        bins=20,
-        title="Jaccard Similarity Distribution Across Methods"
-    )
+        plot_similarity_distribution(
+            [naive_df, lsh_df, datasketch_df],
+            labels=["Naïve (brute-force)", "LSH", "DataSketch"],
+            bins=20,
+            title="Jaccard Similarity Distribution Across Methods"
+        )
 
-    plot_similarity_boxplot(
-        [naive_df, lsh_df, datasketch_df],
-        labels=["Naïve (brute-force)", "LSH", "DataSketch"],
-        title="Jaccard Similarity Box Plot"
-    )
+        plot_similarity_boxplot(
+            [naive_df, lsh_df, datasketch_df],
+            labels=["Naïve (brute-force)", "LSH", "DataSketch"],
+            title="Jaccard Similarity Box Plot"
+        )
+
 
 if __name__ == "__main__":
     main()

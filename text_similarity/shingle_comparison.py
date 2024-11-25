@@ -53,30 +53,25 @@ class ShingleComparison:
         # Total comparisons: n * (n - 1) / 2 (triangular loop)
         num_comparisons = len(shingles) * (len(shingles) - 1) // 2
 
-        # Use tqdm to display progress
         with tqdm(total=num_comparisons, desc="Comparing shingles") as progress_bar:
             for i, shingle_set1 in enumerate(shingles):
                 for j, shingle_set2 in enumerate(shingles[i + 1:]):
-                    # Ensure shingle_set1 and shingle_set2 are sets
+
                     if not isinstance(shingle_set1, set):
                         shingle_set1 = set(shingle_set1)
                     if not isinstance(shingle_set2, set):
                         shingle_set2 = set(shingle_set2)
 
-                    # Compute Jaccard similarity
                     jaccard_sim = jaccard_similarity(shingle_set1, shingle_set2)
                     jaccard_values.append(jaccard_sim)
 
-                    # Check threshold for near-duplicates
                     if jaccard_sim >= self.threshold:
                         near_duplicates.append((i, i + 1 + j, round(jaccard_sim, 2)))
 
-                    # Update the progress bar
                     progress_bar.update(1)
 
         end_time = time.time()
         self.elapsed_time = end_time - start_time
         self.jaccard_values = jaccard_values
 
-        # Create a DataFrame from the list of near-duplicates
         self.df = pd.DataFrame(near_duplicates, columns=['Document 1 Index', 'Document 2 Index', 'Jaccard Similarity'])

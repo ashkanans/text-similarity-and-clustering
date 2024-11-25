@@ -35,7 +35,7 @@ class DataSketchLSH:
                     minhash.update(shingle.encode('utf-8'))
                 self.minhashes.append(minhash)
                 self.lsh.insert(f"doc_{i}", minhash)
-                progress_bar.update(1)  # Update the progress bar after each iteration
+                progress_bar.update(1)
 
     def find_near_duplicates(self, args):
         """
@@ -45,19 +45,17 @@ class DataSketchLSH:
             args (argparse.Namespace): Command-line arguments containing output file path and other settings.
 
         Returns:
-            None
+            int: The number of filtered near-duplicate pairs.
+            pd.DataFrame: A DataFrame containing the filtered near-duplicate pairs.
         """
         results = []
 
         for i, doc_minhash in enumerate(self.minhashes):
-            # Query LSH for candidates
             candidates = self.lsh.query(doc_minhash)
             for candidate in candidates:
-                # Avoid self-comparison
                 if candidate == f"doc_{i}":
                     continue
 
-                # Calculate Jaccard similarity
                 candidate_index = int(candidate.split("_")[1])
                 jaccard_sim = doc_minhash.jaccard(self.minhashes[candidate_index])
 
@@ -65,15 +63,13 @@ class DataSketchLSH:
                 results.append(
                     {"Document 1 Index": i, "Document 2 Index": candidate_index, "Jaccard Similarity": jaccard_sim})
 
-        # Convert results to a DataFrame
         results_df = pd.DataFrame(results)
 
-        # Construct output file name
+        filtered_results_df = results_df.loc[results_df["Jaccard Similarity"] >= args.threshold]
+
         output_file = os.path.join(os.path.dirname(args.output), "near_duplicates_data_sketch.csv")
 
-        # Save results
         output_file_with_timestamp = f"{output_file.rsplit('.', 1)[0]}.csv"
+        filtered_results_df.to_csv(output_file_with_timestamp, index=False)
 
-        results_df.to_csv(output_file_with_timestamp, index=False)
-
-        return len(results), results_df
+        return len(filtered_results_df), filtered_results_df
