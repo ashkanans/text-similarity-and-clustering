@@ -175,7 +175,7 @@ def perform_naive_similarity_analysis(shingles_list, processed_data, args):
     elapsed_time = time.time() - start_time
     num_duplicates = len(shingle_comparison.df)
     print(f"Naïve similarity analysis completed in {elapsed_time:.2f} seconds.")
-    print(f"Number of near duplicates found using naïve method: {num_duplicates}")
+    print(f"Number of near duplicates found using Naïve method: {num_duplicates}")
     print(f"Results saved to: {output_file}")
     return shingle_comparison.df
 
@@ -221,7 +221,7 @@ def main():
     print("\nStep 1. Performing similarity analysis using LSH technique...")
     lsh_df = perform_lsh_similarity_analysis(shingles_list, args)
 
-    print("\nStep 2. Performing similarity analysis using naïve technique...")
+    print("\nStep 2. Performing similarity analysis using Naïve (brute-force) technique ...")
     naive_df = perform_naive_similarity_analysis(shingles_list, processed_data, args)
 
     print("\nStep 3. Performing similarity analysis using DataSketch...")
@@ -245,7 +245,7 @@ def main():
 
     plot_cumulative_distribution(
         [naive_df, lsh_df, datasketch_df],
-        labels=["Naïve", "LSH", "DataSketch"],
+        labels=["Naïve (brute-force)", "LSH", "DataSketch"],
         title="Cumulative Distribution of Jaccard Similarities"
     )
 
@@ -253,14 +253,14 @@ def main():
 
     plot_similarity_distribution(
         [naive_df, lsh_df, datasketch_df],
-        labels=["Naïve", "LSH", "DataSketch"],
+        labels=["Naïve (brute-force)", "LSH", "DataSketch"],
         bins=20,
         title="Jaccard Similarity Distribution Across Methods"
     )
 
     plot_similarity_boxplot(
         [naive_df, lsh_df, datasketch_df],
-        labels=["Naïve", "LSH", "DataSketch"],
+        labels=["Naïve (brute-force)", "LSH", "DataSketch"],
         title="Jaccard Similarity Box Plot"
     )
 

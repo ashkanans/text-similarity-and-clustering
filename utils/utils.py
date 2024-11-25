@@ -1,5 +1,8 @@
 import random
 
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 from matplotlib_venn import venn2
 
 from text_similarity.shingle_comparison import ShingleComparison
@@ -214,13 +217,11 @@ def plot_venn_diagram(naive_pairs, method_pairs, method_name):
         [naive_pairs, method_pairs],
         ("Naïve", method_name)
     )
-    plt.title(f"Venn Diagram: Naïve vs {method_name}")
+    plt.title(f"Venn Diagram: Naïve (brute-force) vs {method_name}")
     plt.show(block=True)
 
 
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pandas as pd
+
 
 
 def plot_similarity_heatmap(df, title="Jaccard Similarity Heatmap"):
@@ -247,7 +248,7 @@ def plot_similarity_heatmap(df, title="Jaccard Similarity Heatmap"):
 
 
 def plot_heatmap(naive_df, lsh_df, datasketch_df):
-    plot_similarity_heatmap(naive_df, title="Naïve Jaccard Similarity Heatmap")
+    plot_similarity_heatmap(naive_df, title="Naïve (brute-force) Jaccard Similarity Heatmap")
     plot_similarity_heatmap(lsh_df, title="LSH Jaccard Similarity Heatmap")
     plot_similarity_heatmap(datasketch_df, title="DataSketch Jaccard Similarity Heatmap")
 
