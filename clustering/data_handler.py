@@ -8,7 +8,7 @@ import pandas as pd
 class DataHandler:
     """Handles data downloading and loading."""
 
-    def __init__(self, download_dir="data/raw"):
+    def __init__(self, download_dir="data\\raw"):
         self.download_dir = download_dir
         self.data_path = os.path.join(self.download_dir, "housing.csv")
 
@@ -33,4 +33,23 @@ class DataHandler:
     def load_data(self):
         """Load the dataset from a CSV file."""
         print(f"Loading data from {self.data_path}...")
+
         return pd.read_csv(self.data_path)
+
+    def clean_data(self, data):
+        """
+        Preprocess the dataset:
+        1. Report the number of improper values (NaNs) in each column.
+        2. Drop rows with any improper values.
+        """
+        print("\n--- Preprocessing Data ---")
+        # Report improper values in each column
+        print("Number of improper values (e.g., NaN) in each column:")
+        improper_counts = data.isnull().sum()
+        print(improper_counts)
+
+        # Drop rows with any improper values
+        cleaned_data = data.dropna()
+        print(f"\nDropped rows with improper values. Remaining rows: {cleaned_data.shape[0]}")
+
+        return cleaned_data
