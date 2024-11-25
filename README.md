@@ -313,26 +313,78 @@ The `LSH` class implements this process by using hash tables and banding techniq
      - A list of candidate pairs that are likely near-duplicates.
      - The time taken to perform the operation (`elapsed_time_lsh`).
 
----
-
-#### 5. **S-Curve Analysis for Parameter Optimization**
-   - **Purpose**: Tune the LSH parameters (\( r \): rows per band, \( b \): number of bands) for the best trade-off between false positives and false negatives.
-   - **Process**:
-     1. Generate S-curves representing the probability of candidate selection as a function of similarity for different \( r, b \) combinations.
-     2. Identify \( r, b \) values that maximize the slope of the S-curve at the desired similarity threshold (e.g., \( s = 0.8 \)).
-   - **Visualization**:
-     - Plots showing S-curves for the first, last, and optimized \( r, b \) combinations.
-     - Vertical lines indicate the similarity threshold.
+### S-Curve Analysis for Parameter Optimization
 
 ---
 
-#### 6. **Setting \( r, b \) Values**
-   - After identifying the optimal \( r, b \) values, these are used in subsequent LSH operations.
-   - Ensures that only documents with high similarity (e.g., \( \geq 0.8 \)) are retrieved as candidates.
+#### **Purpose**
+
+The S-curve analysis is conducted to optimize the parameters of the LSH algorithm (\( r \): rows per band, \( b \):
+number of bands) for achieving a balance between false positives and false negatives. This ensures effective similarity
+detection while maintaining computational efficiency.
 
 ---
+
+#### **Process**
+
+1. **Generating S-Curves**:
+    - Multiple S-curves are plotted for various \( r, b \) combinations, illustrating the probability of candidate
+      selection as a function of Jaccard similarity.
+    - Steeper slopes at the similarity threshold (\( s = 0.8 \)) indicate better performance in distinguishing similar
+      and dissimilar pairs.
+
+2. **Parameter Tuning**:
+    - The optimal \( r, b \) combination is identified as the one that maximizes the slope of the S-curve at \( s =
+      0.8 \).
+    - Two cases were explored:
+        - **Moderate Parameters (\( r = 16, b = 20 \))**: Faster execution with acceptable accuracy.
+        - **High Parameters (\( r = 20, b = 50 \))**: Improved accuracy but slower due to computational overhead.
+
+---
+
+#### **Results**
+
+1. **Moderate Parameters: \( r = 16, b = 20 \)**
+    - **Observation**: The S-curve has a reasonably steep slope at \( s = 0.8 \), indicating a good balance between
+      efficiency and accuracy.
+    - **Visualization**: The plot below shows the S-curve for this setting, highlighting the optimized (red) curve.
+
+   ![S-Curve Analysis - (r=16, b=20)](files/text_similarity/S-curve%20analysis%20-%20(r=16,b=20).png)
+
+2. **High Parameters: \( r = 20, b = 50 \)**
+    - **Observation**: The S-curve for \( r = 20, b = 50 \) has a much steeper slope at \( s = 0.8 \), reflecting higher
+      precision in candidate selection. However, this setting results in slower execution due to increased computational
+      demands.
+    - **Visualization**: The plot below demonstrates the effect of increasing \( r, b \).
+
+   ![S-Curve Analysis - (r=20, b=50)](files/text_similarity/S-curve%20analysis%20-%20(r=20,b=50).png)
+
+3. **Comparison of Moderate and High Parameters**
+    - **Observation**: The difference between the two settings is shown in the figure below. The red curve (\( r=20,
+      b=50 \)) is steeper at the threshold, offering better precision, while the blue curve (\( r=16, b=20 \)) provides
+      a more computationally efficient solution with a slightly lower slope.
+
+   ![Difference Between (r=16, b=20) and (r=20, b=50)](files/text_similarity/the%20difference%20between%20different%20(r,b)%20pairs%20-%20(r=16,b=20)%20vs%20(r=20,%20b=50).png)
+
+---
+
+#### **Summary**
+
+- **Moderate Parameters (\( r = 16, b = 20 \))**:
+    - Faster execution, suitable for large datasets where computational cost is a concern.
+    - A good trade-off between accuracy and efficiency.
+
+- **High Parameters (\( r = 20, b = 50 \))**:
+    - Higher precision, capturing more near-duplicates, but slower execution.
+    - Useful in scenarios where accuracy is critical, and computation time is less of a concern.
+
+By leveraging S-curve analysis, the appropriate parameter configuration can be chosen based on the specific requirements
+of the application.
 
 #### Advantages of LSH
+
+Until now, we have covered also all the details about out LSH pipeline. Just to summrize the key advantages of our LSH
+implementation:
 1. **Scalability**:
    - Drastically reduces the number of comparisons required to find near-duplicates.
 2. **Parameter Optimization**:
@@ -344,22 +396,244 @@ The `LSH` class implements this process by using hash tables and banding techniq
 
 ---
 
-#### Example Workflow with LSH
-1. **Input**: Min-Hash signatures for a collection of Amazon product descriptions.
-2. **Process**:
-   - Split signatures into bands and hash into buckets.
-   - Identify candidate pairs by finding documents that share buckets in at least one band.
-   - Validate candidate pairs using Jaccard similarity.
-3. **Output**:
-   - Candidate pairs of near-duplicate products.
-   - Execution time and performance metrics.
-4. **Visualization**:
-   - An S-curve plot demonstrating the probability of detecting similar pairs at varying similarity thresholds.
+### Example Workflow with LSH
+
+This section describes the step-by-step process of performing similarity analysis using the LSH pipeline, from the
+initial parameter tuning to the final output.
 
 ---
 
-The LSH implementation in this pipeline ensures efficient, scalable, and accurate identification of near-duplicate documents, making it ideal for large datasets such as Amazon product descriptions.
+#### **Step 1: Parameter Optimization with S-Curve Analysis**
 
-#### S-curves showing the first, last, the chosen and all (r, b) combinations.
+- The pipeline begins by performing **S-curve analysis** to fine-tune the LSH parameters \( r \) (rows per band) and \(
+  b \) (number of bands).
+- The S-curve visualization helps identify the optimal \( r, b \) combination by maximizing the slope at a given
+  similarity threshold (e.g., \( s = 0.8 \)).
+- Based on the analysis, the pipeline sets the optimal \( r, b \) values to balance computational efficiency with
+  similarity detection accuracy.
 
-### Finding Near-Duplicates (by comparing them with each other)
+---
+
+#### **Step 2: Generating Min-Hash Signatures**
+
+- After parameter optimization, Min-Hash signatures are generated for the input shingle sets.
+- The number of hash functions is calculated as \( r \times b \), ensuring the signatures align with the chosen
+  parameters.
+- Min-Hash signatures provide a compact representation of the input data, enabling efficient similarity computations.
+
+---
+
+#### **Step 3: Indexing Min-Hash Signatures**
+
+- The generated Min-Hash signatures are split into bands, and each band is hashed into buckets using the LSH hash
+  function.
+- This step organizes the data into buckets where similar items are more likely to collide, drastically reducing the
+  number of comparisons needed.
+
+---
+
+#### **Step 4: Identifying Near-Duplicates**
+
+- The pipeline identifies **candidate pairs** by finding items that share at least one bucket in any band.
+- Candidate pairs are validated by calculating their actual Jaccard similarity to ensure they meet the similarity
+  threshold and are saved in the csv file
+
+---
+
+### Comparison of Naïve, LSH, and DataSketch Methods for Text Similarity
+
+This section evaluates the performance of Naïve (brute-force), LSH, and DataSketch approaches for computing text
+similarity. Various metrics and visualizations are used to highlight differences and similarities across the methods.
+
+---
+
+#### 1. Venn Diagram: Overlap in Detected Similar Pairs
+
+The Venn diagrams show the overlap in similar pairs detected by different methods.
+
+- **Naïve vs LSH**:
+    - Intersection: 356 pairs.
+    - Unique to Naïve: 80 pairs.
+    - Unique to LSH: 392 pairs.
+
+![Naïve vs LSH](files/text_similarity/Venn%20Diagram-%20Naïve%20(brute-force)%20vs%20LSH.png)
+
+- **Naïve vs DataSketch**:
+    - Intersection: 340 pairs.
+    - Unique to Naïve: 96 pairs.
+    - Unique to DataSketch: 374 pairs.
+
+![Naïve vs DataSketch](files/text_similarity/Venn%20Diagram-%20Naïve%20(brute-force)%20vs%20DataSketch.png)
+
+---
+
+#### 2. Jaccard Similarity Box Plot
+
+The box plot compares the distribution of Jaccard similarity scores for the three methods:
+
+- **Naïve** has a wider range of scores, with a few outliers near 1.0.
+- **LSH and DataSketch** exhibit a more concentrated range around higher similarity values, reflecting their optimized
+  nature for capturing higher similarities.
+
+![Jaccard Similarity Box Plot](files/text_similarity/Jaccard%20Similarity%20Box%20Plot.png)
+
+---
+
+#### 3. Precision, Recall, and F1-Score Comparison
+
+The bar plots highlight performance metrics:
+
+- **LSH** achieves higher recall but lower precision than DataSketch.
+- **DataSketch** offers balanced metrics with slightly better precision and F1-score.
+
+![LSH and DataSketch Metrics Comparison](files/text_similarity/Comparison%20of%20LSH%20and%20DataSketch%20Metrics.png)
+
+---
+
+#### 4. Cumulative Distribution of Jaccard Similarities
+
+The cumulative distribution plot compares how similarity scores are distributed:
+
+- **Naïve** leads in identifying pairs with scores above 0.95.
+- **LSH and DataSketch** produce more consistent results over the full range of similarities, with smoother cumulative
+  curves.
+
+![Cumulative Distribution of Jaccard Similarities](files/text_similarity/Cumulative%20Distribution%20of%20Jaccard%20Similarities.png)
+
+---
+
+#### 5. Jaccard Similarity Heatmaps
+
+The heatmaps visualize pairwise Jaccard similarities:
+
+- **Naïve** shows denser clusters, reflecting all pair comparisons.
+- **LSH and DataSketch** produce sparser but well-distributed similarities, focusing on near-duplicates.
+
+- **Naïve**:
+  ![Naïve Jaccard Similarity Heatmap](files/text_similarity/Naïve%20(brute-force)%20Jaccard%20Similarity%20Heatmap.png)
+
+- **LSH**:
+  ![LSH Jaccard Similarity Heatmap](files/text_similarity/LSH%20Jaccard%20Similarity%20Heatmap.png)
+
+- **DataSketch**:
+  ![DataSketch Jaccard Similarity Heatmap](files/text_similarity/DataSketch%20Jaccard%20Similarity%20Heatmap.png)
+
+---
+
+#### 6. Jaccard Similarity Distribution
+
+The histogram demonstrates the frequency distribution of similarity scores:
+
+- **Naïve** captures a broader distribution.
+- **LSH and DataSketch** concentrate on higher similarity scores, reflecting their locality-sensitive nature.
+
+![Jaccard Similarity Distribution Across Methods](files/text_similarity/Jaccard%20Similarity%20Distribution%20Accross%20Methods.png)
+
+---
+
+### Summary
+
+- **Naïve (Brute-Force)**: Provides exhaustive comparisons but is computationally expensive.
+- **LSH**: Optimized for recall, ensuring most similar pairs are detected but at the cost of precision.
+- **DataSketch**: Balances precision, recall, and F1-score, making it a robust alternative to brute-force.
+
+## Execution Time and Performance Comparison
+
+This section compares the execution times and results of the similarity analysis performed using the three techniques:
+LSH, Naïve (brute-force), and DataSketch. Key steps and timings for each method are outlined below.
+
+---
+
+#### **1. LSH Technique**
+
+- **Parameter Tuning**: S-curve analysis was performed to optimize the parameters.
+    - **Optimal Parameters**: \( r = 16 \), \( b = 20 \) (highest slope on S-curve).
+- **Steps**:
+    1. Generating MinHash signatures.
+        - Processed 4000 sets in approximately 5 minutes.
+    2. Indexing MinHash signatures.
+        - Completed in **0.40 seconds**.
+    3. Finding near-duplicates.
+        - Detection completed in **0.49 seconds**.
+
+- **Total Execution Time**: **304.19 seconds** (~5 minutes).
+- **Results**:
+    - Number of near duplicates found: **748**.
+    - Results saved to: `data/processed/near_duplicates_lsh.csv`.
+
+---
+
+#### **2. Naïve (Brute-Force) Technique**
+
+- **Steps**:
+    1. Comparing all pairs of shingles.
+        - Completed 7,998,000 comparisons in **104.36 seconds** (~1.7 minutes).
+
+- **Total Execution Time**: **104.36 seconds**.
+- **Results**:
+    - Number of near duplicates found: **436**.
+    - Results saved to: `data/processed/near_duplicates_naive.csv`.
+
+---
+
+#### **3. DataSketch Technique**
+
+- **Steps**:
+    1. Adding shingles to LSH.
+        - Processed 4000 sets in **17 seconds**.
+    2. Finding and saving near duplicates.
+        - Completed similarity analysis in **18.10 seconds**.
+
+- **Total Execution Time**: **18.10 seconds**.
+- **Results**:
+    - Number of near duplicates found: **714**.
+    - Results saved to: `data/processed/near_duplicates_data_sketch.csv`.
+
+---
+
+#### **Comparison Summary**
+
+| Technique      | Number of Hashes | Total Time (s) | Near Duplicates Found | Notes                                                                          |
+|----------------|------------------|----------------|-----------------------|--------------------------------------------------------------------------------|
+| **LSH**        | **320**          | 350.47         | 752                   | Faster execution with slightly fewer duplicates; parameters: \( r=16, b=20 \). |
+| **LSH**        | **1000**         | 921.27         | 756                   | Slower due to increased computational cost; parameters: \( r=20, b=50 \).      |
+| **DataSketch** | **320**          | 18.10          | 714                   | Fastest with balanced results.                                                 |
+| **DataSketch** | **1000**         | 39.09          | 684                   | Fastest and highly efficient, with balanced precision and recall.              |
+| **Naïve**      | N/A              | 102.16         | 436                   | Exhaustive comparison; efficient for small datasets but scales poorly.         |
+
+---
+
+### Observations
+
+1. **Effect of Number of Hashes on LSH**:
+    - Increasing the number of hashes from **320** to **1000** significantly increased the total runtime from **350.47
+      seconds** to **921.27 seconds**.
+    - The number of near duplicates detected increased slightly (752 to 756), indicating improved accuracy but
+      diminishing returns as the computational cost rose significantly.
+
+2. **Execution Time Across Techniques**:
+    - Naïve remained faster than both LSH configurations due to its simplicity but lacks scalability for larger
+      datasets.
+    - DataSketch continues to be the fastest technique, unaffected by the number of hashes since it uses approximate
+      methods to achieve balance between speed and accuracy.
+
+3. **Near-Duplicates Detected**:
+    - LSH with **1000 hashes** achieved the highest accuracy but at a considerable computational expense.
+    - LSH with **320 hashes** offers a more practical balance, achieving nearly the same accuracy as the 1000-hash case
+      but with significantly reduced runtime.
+    - Naïve detected the least duplicates, showing limitations in recall compared to the hashing-based techniques.
+    - DataSketch detected fewer duplicates than LSH, reflecting its trade-off between speed and recall.
+
+---
+
+### Recommendations
+
+- **320 Hashes for LSH**: Use this configuration for a practical trade-off between runtime and accuracy, especially for
+  large datasets.
+- **1000 Hashes for LSH**: Suitable only when maximum accuracy is required, and computational resources are not a
+  concern.
+- **DataSketch**: Best suited for scenarios where speed is critical, and slight reductions in recall are acceptable.
+- **Naïve**: Only suitable for smaller datasets due to its poor scalability.
+
+This table highlights how increasing the number of hashes impacts the accuracy and execution time of LSH, helping choose
+the optimal configuration based on the application requirements.
