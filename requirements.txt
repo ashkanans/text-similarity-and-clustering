@@ -1,6 +1,6 @@
 pandas~=2.2.3
 requests~=2.32.3
-scikit-learn
+scikit-learn~=1.5.2
 requests
 nltk~=3.9.1
 numpy~=1.26.4
@@ -10,8 +10,10 @@ plotly~=5.24.1
 bs4~=0.0.2
 pyspark~=3.5.3
 kaggle
-seaborn
+seaborn~=0.13.2
 torch
 datasketch~=1.6.5
 beautifulsoup4~=4.12.3
 tqdm~=4.67.0
+sklearn
+kagglehub~=0.3.4
