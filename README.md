@@ -1,18 +1,25 @@
 
 # Text Similarity and Clustering
 
-### Text Similarity
+# Text Similarity
 
-The objective of this task is to find near-duplicate products in a collection of Amazon product descriptions. To achieve this, we are tasked with implementing a nearest-neighbor search using text documents. Specifically, we will use **shingling**, **minwise hashing**, and **locality-sensitive hashing (LSH)** to identify products that are similar based on their textual content.
+This project aims to identify near-duplicate products within a dataset of Amazon product descriptions by implementing a
+**nearest-neighbor search** using text-based methods. The task focuses on leveraging techniques such as **shingling**, *
+*minwise hashing**, and **locality-sensitive hashing (LSH)** to detect similarities in textual content efficiently.
 
-The problem involves the following steps:
+### Approach Overview
 
-1. **Shingling**: Create shingles (substrings) of length 10 from the product descriptions.
-2. **Minwise Hashing**: Use minwise hashing to create signatures for the shingles.
-3. **Locality-Sensitive Hashing (LSH)**: Implement LSH to efficiently find pairs of documents with a high similarity, specifically with a Jaccard coefficient of at least 80%.
-4. **Comparison**: Compare the performance of LSH with a brute-force method that calculates the Jaccard similarity between all pairs of documents.
+The solution is structured into the following key steps:
 
-The task evaluates the ability to efficiently find near-duplicates using advanced hashing techniques and compares the results in terms of both accuracy and computational efficiency.
+1. **Shingling**: Generate shingles (substrings) of fixed length (10) from the product descriptions to represent the
+   textual content in a granular way.
+2. **Minwise Hashing**: Create compact signatures for the shingles using minwise hashing, which enables efficient
+   similarity comparisons.
+3. **Locality-Sensitive Hashing (LSH)**: Implement LSH to identify document pairs with a high similarity, focusing on
+   those with a **Jaccard coefficient of at least 80%**.
+4. **Performance Comparison**:
+    - Benchmark LSH against a brute-force approach that computes Jaccard similarity for all document pairs.
+    - Compare the implemented LSH with the DataSketch LSH library to evaluate its accuracy and efficiency.
 
 ### LSH Pipeline
 
@@ -20,7 +27,19 @@ Here is a visual representation of the LSH pipeline:
 
 ![LSH Pipeline](files/text_similarity/lsh%20pipeline.png)
 
-### Analyzing the Amazon Products Description
+### Analyzing Amazon Product Descriptions
+
+Amazon product descriptions present several challenges that complicate analysis and similarity detection. These include
+duplication of information, inconsistent formatting, incomplete data, localization complexities, and repetitive
+patterns. However, even with a quick glance, it's possible to identify near-duplicate products, revealing subtle
+variations such as changes in RAM size or keyboard color.
+
+For example:
+
+- **Gold Version:** *PC Portatile Computer Portatile Win11 Notebook 14 Pollici 6GB 256GB SSD Expansion 1TB, Laptop
+  Celeron N4020 fino a 2.8GHz, 5000mAh 5G WiFi BT4.2 Supporto Mouse Wireless & Protezione Tastiera-Oro*
+- **Red Version:** *PC Portatile Computer Portatile Win11 Notebook 14 Pollici 6GB 256GB SSD Expansion 1TB, Laptop
+  Celeron N4020 fino a 2.8GHz, 5000mAh 5G WiFi BT4.2 Supporto Mouse Wireless & Protezione Tastiera-Rosso*
 
 
 ### Preprocessing Descriptions for Near-Duplicate Search
@@ -34,10 +53,12 @@ Here’s a concise explanation of how preprocessing is performed using the `Text
 
 ---
 
-#### **Steps in Preprocessing**
+### **Steps in Preprocessing**
 
 #### **1. Multi-Word Term Preservation**
-   - Phrases like "windows 10 pro" or "dual band wifi" are preserved as single tokens by replacing spaces with underscores (e.g., `"windows_10_pro"`).
+
+- Phrases like `"windows 10 pro"` or `"dual band wifi"` are preserved as single tokens by replacing spaces with
+  underscores (e.g., `"windows_10_pro"`).
 
 #### **2. Tokenization**
    - The text is split into individual tokens (words and punctuation) using the NLTK tokenizer.
@@ -45,7 +66,8 @@ Here’s a concise explanation of how preprocessing is performed using the `Text
 #### **3. Punctuation and Symbol Removal**
    - Non-alphanumeric characters are removed. However:
      - Mixed alphanumeric terms (e.g., `"16GB"`) are retained.
-     - Pure numbers and specific units (e.g., `"gb"`, `"mhz"`) are filtered out.
+     - Numeric values with decimals (e.g., `4.6 GHz`, `15.6 inch`) and certain units (e.g., `"gb"`, `"mhz"`) are
+       preserved.
 
 #### **4. Handling Joined Terms**
    - Certain word pairs (e.g., `"m2"` and `"ssd"`) are combined into meaningful phrases like `"m.2 ssd"`.
@@ -54,7 +76,8 @@ Here’s a concise explanation of how preprocessing is performed using the `Text
    - Common English stopwords (e.g., "the", "is") and some Italian stopwords (e.g., "di", "per") are removed, unless explicitly configured to remain.
 
 #### **6. Token Processing (Stemming and Lemmatization)**
-   - Tokens in a list of preserved words (e.g., "laptop", "windows") are lemmatized (converted to their base forms).
+
+- Tokens in a list of preserved words (e.g., `"laptop"`, `"windows"`) are lemmatized (converted to their base forms).
    - Other tokens are stemmed (reduced to their root forms) for standardization.
 
 #### **7. Multi-Word Term Restoration**
@@ -62,18 +85,80 @@ Here’s a concise explanation of how preprocessing is performed using the `Text
 
 ---
 
-#### **Final Output**
+### **Example Preprocessing**
 
-The preprocessing produces a list of cleaned, normalized tokens tailored for further analysis, such as text classification or search optimization.
+For different input examples, the preprocessing steps produce the following outputs:
 
-For instance, given an input like:
-```text
-"Windows 10 Pro laptop with 16GB DDR4 RAM and 512GB SSD."
+#### **Example 1: Lenovo Notebook Description**
+
+**Raw Description:**
+
+```plaintext
+Lenovo Notebook Nuovo • 24gb di Ram • CPU Intel Core i5 • Monitor 15.6 Full HD • SSD 256 nvme + SSD 128 GB SATA • Sistema operativo Win 11 e Libre Office • Mouse + Adattatore usb Type C
 ```
-The output might look like:
+
+**Output (Tokenized=False):**
+
+```plaintext
+'lenovo notebook nuovo 24gb ram cpu intel core i5 monitor 15.6 full hd ssd 256 nvme ssd 128 gb sata sistema operativo win 11 libre offic mouse adattator usb type c'
+```
+
+**Output (Tokenized=True):**
+
 ```python
-['windows_10_pro', 'laptop', '16gb', 'ddr4', 'ram', '512gb', 'ssd']
+['lenovo', 'notebook', 'nuovo', '24gb', 'ram', 'cpu', 'intel core i5', 'monitor', '15.6', 'full hd', 'ssd', '256', 'nvme', 'ssd', '128', 'gb', 'sata', 'sistema', 'operativo', 'win 11', 'libre offic', 'mouse', 'adattator', 'usb', 'type', 'c']
 ```
+
+---
+
+#### **Example 2: Samsung Galaxy Book Description**
+
+**Raw Description:**
+
+```plaintext
+Samsung Galaxy Book4 Pro 360, Intel® Core™ Ultra 7 Processor, 16GB RAM, 512GB, Laptop 16 Dynamic AMOLED 2X touch, S Pen, Windows 11 Home, Moonstone Gray [Versione Italiana]
+```
+
+**Output (Tokenized=False):**
+
+```plaintext
+'samsung galaxi book4 pro 360 intel core ultra 7 processor 16gb ram 512gb laptop 16 dynam amoled 2x touch pen windows 11 hom moonston gray version italiana'
+```
+
+**Output (Tokenized=True):**
+```python
+['samsung', 'galaxi', 'book4', 'pro', '360', 'intel', 'core', 'ultra', '7', 'processor', '16gb ram', '512gb', 'laptop', '16', 'dynam', 'amoled', '2x', 'touch', 'pen', 'windows 11 hom', 'moonston', 'gray', 'version', 'italiana']
+```
+
+---
+
+#### **Example 3: ASUS Expertbook Description**
+
+**Raw Description:**
+
+```plaintext
+ASUS Expertbook i5-1335u 4.6 GHz 15.6 pollici FHD Ram 16 Gb Ddr4 Ssd Nvme 512 Gb HDMI USB 3.0 WiFi Bluetooth Webcam Office Pro 2021 Windows 11 Pro
+```
+
+**Output (Tokenized=False):**
+
+```plaintext
+'asus expertbook i5-1335u 4.6 ghz 15.6 inch full hd ram 16 gb ddr4 ssd nvme 512 gb hdmi usb 3.0 wifi bluetooth webcam office pro 2021 windows 11 pro'
+```
+
+**Output (Tokenized=True):**
+
+```python
+['asus', 'expertbook', 'i5-1335u', '4.6', 'ghz', '15.6 inch', 'full', 'hd', 'ram', '16', 'gb', 'ddr4', 'ssd', 'nvme', '512', 'gb', 'hdmi', 'usb 3.0', 'wifi', 'bluetooth', 'webcam', 'office', 'pro', '2021', 'windows 11 pro']
+```
+
+---
+
+### **Key Takeaways**
+
+- Preprocessing helps standardize descriptions for better near-duplicate detection.
+- The `TextPreprocessor` class ensures consistent tokenization, cleaning, and normalization.
+- Numeric values, abbreviations, and multi-word terms are carefully preserved to maintain essential context.
 
 ---
 
