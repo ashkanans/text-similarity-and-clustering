@@ -12,7 +12,7 @@ class Clustering:
     """Performs clustering and visualization."""
 
     @staticmethod
-    def find_optimal_clusters(data, method="silhouette", max_clusters=10):
+    def find_optimal_clusters(data, method="silhouette", max_clusters=50):
         """
         Find the optimal number of clusters using the specified method.
         Available methods: 'silhouette', 'davies_bouldin', 'calinski_harabasz', 'elbow'.
@@ -39,10 +39,19 @@ class Clustering:
             scores.append(score)
 
         # Determine optimal clusters based on the method
-        if method == "silhouette" or method == "calinski_harabasz":
-            optimal_clusters = range_values[scores.index(max(scores))]  # Higher is better
-        elif method == "davies_bouldin" or method == "elbow":
-            optimal_clusters = range_values[scores.index(min(scores))]  # Lower is better
+        if method == "elbow":
+            # Use the second derivative to find the elbow point
+            deltas = np.diff(scores)
+            second_deltas = np.diff(deltas)
+            optimal_clusters = range_values[np.argmin(second_deltas) + 1]  # Add 1 to adjust for indexing
+        elif method in ["silhouette", "calinski_harabasz"]:
+            # Higher scores are better for silhouette and calinski_harabasz
+            optimal_clusters = range_values[scores.index(max(scores))]
+        elif method == "davies_bouldin":
+            # Lower scores are better for davies_bouldin
+            optimal_clusters = range_values[scores.index(min(scores))]
+        else:
+            raise ValueError("Unsupported method. Use a valid method.")
 
         # Plot scores for visual analysis
         plt.figure()

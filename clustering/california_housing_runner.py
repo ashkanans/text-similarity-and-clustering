@@ -24,13 +24,13 @@ class CaliforniaHousingRunner:
         for action in actions:
             if action == "download":
                 self.download()
-
             elif action == "load":
                 self.load()
             elif action == "clustering_raw":
                 labels, numeric_data = self.clustering_raw()
                 self.compare_and_visualize(numeric_data=numeric_data, labels=labels)
-            elif action == "clustering":
+            elif action == "clustering_engineered":
+                self.feature_engineering()
                 self.clustering_engineered()
             else:
                 raise ValueError(f"Unknown action: {action}")
@@ -50,15 +50,6 @@ class CaliforniaHousingRunner:
         print(f"Dataset shape before cleaning: {self.data.shape}")
         self.data = self.data_handler.clean_data(self.data)
         print(f"Dataset shape after cleaning: {self.data.shape}")
-
-    def elbow_raw(self):
-        """
-        Run the Elbow Method on raw data to determine optimal clusters.
-        """
-        if self.data is None:
-            raise ValueError("Data must be loaded first.")
-        numeric_data = self.data.select_dtypes(include=[np.number]).dropna()
-        self.clustering.elbow_method(numeric_data)
 
     def clustering_raw(self):
         """
@@ -94,32 +85,39 @@ class CaliforniaHousingRunner:
         """
         if self.data is None:
             raise ValueError("Data must be loaded first.")
-        self.engineered_data = self.feature_engineer.preprocess_data(self.data)
-
-    def elbow_engineered(self):
-        """
-        Run the Elbow Method on feature-engineered data.
-        """
-        if self.engineered_data is None:
-            raise ValueError("Feature-engineered data must be prepared first.")
-        self.clustering.elbow_method(self.engineered_data)
+        self.engineered_data = self.feature_engineer.preprocess_data(self.data,
+                                                                     scale_numeric=True,
+                                                                     one_hot_encode=True,
+                                                                     add_interaction_features=True,
+                                                                     log_transform_features=False,
+                                                                     discretize_age=False,
+                                                                     handle_missing=True)
 
     def clustering_engineered(self):
         """
-        Perform clustering on feature-engineered data using Silhouette score.
+        Perform clustering on feature-engineered data.
         """
         if self.engineered_data is None:
             raise ValueError("Feature-engineered data must be prepared first.")
 
-        # Perform clustering with a fixed number of clusters (can be modified to use dynamic scoring)
-        labels, silhouette, time_taken = self.clustering.perform_clustering(
-            self.engineered_data, algorithm="kmeans", n_clusters=3, score_method="silhouette"
+        # Determine optimal clusters for engineered data
+        optimal_clusters = self.clustering.find_optimal_clusters(
+            self.engineered_data, method=self.score_method
+        )
+
+        # Perform clustering
+        labels, score, time_taken = self.clustering.perform_clustering(
+            self.engineered_data, algorithm="kmeans", n_clusters=optimal_clusters, score_method=self.score_method
         )
 
         # Print results
-        print("Engineered Data Clustering:")
-        print(f"- Silhouette Score: {silhouette}")
+        print("Engineered Data Clustering Results:")
+        print(f"- Optimal Clusters: {optimal_clusters}")
+        print(f"- {self.score_method.title()} Score: {score:.4f}")
         print(f"- Time Taken: {time_taken:.2f} seconds")
+
+        # Visualization
+        self.compare_and_visualize(self.engineered_data, labels)
 
     def compare_and_visualize(self, numeric_data, labels):
         """
