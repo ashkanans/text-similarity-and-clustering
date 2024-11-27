@@ -634,6 +634,3 @@ LSH, Naïve (brute-force), and DataSketch. Key steps and timings for each method
   concern.
 - **DataSketch**: Best suited for scenarios where speed is critical, and slight reductions in recall are acceptable.
 - **Naïve**: Only suitable for smaller datasets due to its poor scalability.
-
-This table highlights how increasing the number of hashes impacts the accuracy and execution time of LSH, helping choose
-the optimal configuration based on the application requirements.

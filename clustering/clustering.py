@@ -6,6 +6,7 @@ import plotly.express as px
 import seaborn as sns
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score, silhouette_samples
+from tqdm import tqdm
 
 
 class Clustering:
@@ -20,7 +21,8 @@ class Clustering:
         scores = []
         range_values = range(2, max_clusters + 1)  # Start from 2 clusters for most methods
 
-        for k in range_values:
+        print(f"Finding optimal clusters using the {method} method...")
+        for k in tqdm(range_values, desc="Processing clusters", unit="clusters"):
             kmeans = KMeans(n_clusters=k, random_state=42, init="k-means++")
             labels = kmeans.fit_predict(data)
 
@@ -34,22 +36,51 @@ class Clustering:
                 score = kmeans.inertia_
             else:
                 raise ValueError(
-                    "Unsupported method. Use 'silhouette', 'davies_bouldin', 'calinski_harabasz', or 'elbow'.")
+                    "Unsupported method. Use 'silhouette', 'davies_bouldin', 'calinski_harabasz', or 'elbow'."
+                )
 
             scores.append(score)
+            # print(f"Processed {k} clusters: Score = {score:.4f}")
 
-        # Determine optimal clusters based on the method
+        print("All cluster calculations completed.\nDetermining the optimal number of clusters...")
+
+        # Determine optimal clusters based on the selected method
         if method == "elbow":
-            # Use the second derivative to find the elbow point
-            deltas = np.diff(scores)
-            second_deltas = np.diff(deltas)
-            optimal_clusters = range_values[np.argmin(second_deltas) + 1]  # Add 1 to adjust for indexing
-        elif method in ["silhouette", "calinski_harabasz"]:
-            # Higher scores are better for silhouette and calinski_harabasz
+            # Normalize the scores to emphasize the relative change
+            normalized_scores = (scores - np.min(scores)) / (np.max(scores) - np.min(scores))
+
+            distances = []
+            for i in range(len(normalized_scores)):
+                x1, y1 = 0, normalized_scores[0]
+                x2, y2 = len(normalized_scores) - 1, normalized_scores[-1]
+
+                xi, yi = i, normalized_scores[i]
+
+                numerator = abs((y2 - y1) * xi - (x2 - x1) * yi + x2 * y1 - y2 * x1)
+                denominator = np.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
+                distances.append(numerator / denominator)
+
+            optimal_clusters = range_values[np.argmax(distances)]
+
+        elif method == "silhouette":
+
+            score_diffs = np.diff(scores)
+            sharpest_drop_idx = np.argmin(score_diffs)
+            optimal_clusters = range_values[sharpest_drop_idx]
+
+        elif method == "calinski_harabasz":
             optimal_clusters = range_values[scores.index(max(scores))]
+
         elif method == "davies_bouldin":
-            # Lower scores are better for davies_bouldin
-            optimal_clusters = range_values[scores.index(min(scores))]
+
+            # Filter out the scores for k = 2 and k = 3
+            filtered_range_values = [k for k in range_values if k > 3]
+            filtered_scores = [scores[range_values.index(k)] for k in filtered_range_values]
+
+            # Find the optimal number of clusters from the filtered values
+            optimal_clusters = filtered_range_values[filtered_scores.index(min(filtered_scores))]
+
+
         else:
             raise ValueError("Unsupported method. Use a valid method.")
 

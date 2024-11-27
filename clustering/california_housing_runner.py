@@ -90,7 +90,7 @@ class CaliforniaHousingRunner:
                                                                      one_hot_encode=True,
                                                                      add_interaction_features=True,
                                                                      log_transform_features=False,
-                                                                     discretize_age=False,
+                                                                     discretize_age=True,
                                                                      handle_missing=True)
 
     def clustering_engineered(self):

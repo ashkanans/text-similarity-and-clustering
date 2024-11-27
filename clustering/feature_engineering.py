@@ -30,7 +30,7 @@ class FeatureEngineer:
         """
         data = data.copy()
 
-        numeric_features = ['longitude', 'latitude', 'housing_median_age', 'total_rooms',
+        numeric_features = ['longitude', 'latitude', 'total_rooms',
                             'total_bedrooms', 'population', 'households', 'median_income', 'median_house_value']
         categorical_features = ['ocean_proximity']
 
@@ -69,12 +69,16 @@ class FeatureEngineer:
                     data[f'log_{feature}'] = np.log1p(data[feature])
             print("Log transformation applied.")
 
-        # Discretize 'housing_median_age'
+        # Discretize and one-hot encode 'housing_median_age'
         if discretize_age:
             bins = [0, 20, 40, np.inf]
             labels = ['0-20', '20-40', '40+']
             data['age_bin'] = pd.cut(data['housing_median_age'], bins=bins, labels=labels)
-            print("'housing_median_age' discretized into bins.")
+
+            # Apply one-hot encoding
+            age_bin_encoded = pd.get_dummies(data['age_bin'], prefix='age_bin', drop_first=False)
+            data = pd.concat([data.drop(columns=['housing_median_age', 'age_bin']), age_bin_encoded], axis=1)
+            print("'housing_median_age' discretized and one-hot encoded.")
 
         print("Feature engineering completed.")
         return data
