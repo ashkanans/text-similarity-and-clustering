@@ -72,8 +72,7 @@ findings and results.
     - [Comparison of Clustering Results](#comparison-of-clustering-results)
         - [Raw vs Feature-Engineered Data](#raw-vs-feature-engineered-data)
         - [Evaluation Metrics and Insights](#evaluation-metrics-and-insights)
-    - [Visualizations](#visualizations)
-    - [Conclusion and Future Work](#conclusion-and-future-work)
+  - [Conclusion and Future Work](#conclusion)
 
 ## Text Similarity
 
@@ -722,33 +721,260 @@ with visualizations and metrics to evaluate the quality of the clusters and the 
 
 ### Dataset Overview
 
+The dataset, derived from the 1990 California census, contains housing information for districts, including geographic,
+demographic, and economic features. It includes the following columns:
+
+- **Geographic Features:** `longitude`, `latitude`
+- **Demographic Features:** `population`, `households`, `housing_median_age`
+- **Economic Features:** `median_income`, `median_house_value`
+- **Housing Features:** `total_rooms`, `total_bedrooms`, `ocean_proximity`
+
+This dataset requires preprocessing and is ideal for introducing machine learning concepts due to its manageable size
+and straightforward variables.
+
+#### Downloading and Loading the Dataset
+
+The dataset can be downloaded and loaded using the **`main_clustering.py`** script as follows:
+
+1. **Download the Dataset**:
+    - Run the script with the `download` action to download the dataset from Kaggle:
+      ```bash
+      python main_clustering.py download
+      ```
+
+2. **Load and Clean the Dataset**:
+    - Use the `load` action to load the dataset and clean missing values:
+      ```bash
+      python main_clustering.py load
+      ```
+
+These steps ensure the dataset is available in the specified directory (`data/raw/housing.csv`) and is ready for further
+processing and clustering.
+
 ### Methodology
 
 #### Clustering Algorithm k-means++
 
+The **k-means++ algorithm** was chosen for clustering due to its efficiency and improved cluster initialization over
+standard k-means. It minimizes variance within clusters by iteratively assigning data points to the nearest cluster
+centroids and recalculating centroids. The use of k-means++ ensures better initial cluster center selection, reducing
+the likelihood of poor convergence.
+
 #### Methods for Determining Optimal Clusters
+
+To determine the optimal number of clusters, four established evaluation methods were used:
 
 ##### Silhouette Score
 
+The Silhouette Score evaluates clustering quality by measuring how well-separated clusters are. It considers how close a
+data point is to points within its cluster versus points in the nearest neighboring cluster. Scores range from -1 to 1:
+
+- A higher score indicates well-separated and distinct clusters.
+- Negative scores suggest incorrect cluster assignment.
+
+**Implementation in Code:**  
+The difference in scores between successive clusters (\( k \)) is computed. The sharpest drop in scores, determined by
+the minimum difference, identifies the optimal number of clusters. This is calculated as:
+
+```python
+score_diffs = np.diff(scores)
+sharpest_drop_idx = np.argmin(score_diffs)
+optimal_clusters = range_values[sharpest_drop_idx]
+```
+
 ##### Davies-Bouldin Index
+
+The Davies-Bouldin Index measures clustering quality by assessing intra-cluster compactness and inter-cluster
+separation. Lower index values indicate:
+
+- Compact clusters with minimal overlap.
+- Better-separated clusters.
+
+**Implementation in Code:**  
+Scores are calculated for different \( k \) values. Clusters with \( k > 3 \) are filtered out for higher robustness,
+and the minimum score is used to determine the optimal cluster count:
+
+```python
+filtered_range_values = [k for k in range_values if k > 3]
+filtered_scores = [scores[range_values.index(k)] for k in filtered_range_values]
+optimal_clusters = filtered_range_values[filtered_scores.index(min(filtered_scores))]
+```
 
 ##### Calinski-Harabasz Index
 
+The Calinski-Harabasz Index, also called the Variance Ratio Criterion, evaluates clustering by comparing the variance
+within clusters to the variance between cluster centroids. Higher scores indicate better-defined clusters with
+significant differences between centroids.
+
+**Implementation in Code:**  
+The optimal cluster count corresponds to the \( k \) value yielding the highest score:
+
+```python
+optimal_clusters = range_values[scores.index(max(scores))]
+```
+
 ##### Elbow Method
 
+The Elbow Method uses **inertia**, representing the sum of squared distances of points to their nearest cluster
+centroid. Plotting inertia against \( k \) values reveals an "elbow point" where the reduction in inertia slows down,
+marking the optimal cluster count.
+
+**Implementation in Code:**  
+To objectively identify the elbow point, the "knee detection" technique normalizes scores and calculates perpendicular
+distances from a line connecting the first and last inertia values:
+
+```python
+normalized_scores = (scores - np.min(scores)) / (np.max(scores) - np.min(scores))
+distances = []
+for i in range(len(normalized_scores)):
+    x1, y1 = 0, normalized_scores[0]
+    x2, y2 = len(normalized_scores) - 1, normalized_scores[-1]
+    xi, yi = i, normalized_scores[i]
+    numerator = abs((y2 - y1) * xi - (x2 - x1) * yi + x2 * y1 - y2 * x1)
+    denominator = np.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2)
+    distances.append(numerator / denominator)
+optimal_clusters = range_values[np.argmax(distances)]
+```
+
+Each method provides unique insights into clustering quality, ensuring robust identification of the optimal cluster
+count.
 ### Feature Engineering
+
+Feature engineering was applied to enhance the dataset's usability for clustering by transforming and normalizing raw
+data. The following techniques were implemented:
+
+- **Handling Missing Data:** Missing values in numeric features were imputed using the median value to ensure a complete
+  dataset for clustering.
+
+- **Scaling Numeric Features:** Numeric features such as `total_rooms`, `population`, and `median_income` were
+  standardized using `StandardScaler` to normalize their distribution and ensure equal importance during clustering.
+
+- **One-Hot Encoding:** The categorical feature `ocean_proximity` was encoded into binary columns using one-hot encoding
+  to allow its integration into the clustering process.
+
+- **Adding Interaction Features:** New features, such as `rooms_per_household` and `bedrooms_per_household`, were
+  created to capture additional relationships between existing variables.
+
+- **Discretizing Housing Age:** The `housing_median_age` feature was discretized into bins (
+  e.g., `0-20`, `20-40`, `40+`) and one-hot encoded to reduce the effect of outliers.
+
+These engineered features enhanced the dataset's structure, improving the clustering algorithm's ability to
+differentiate between groups.
 
 ### Clustering on Raw Data
 
+Clustering on the raw dataset was performed using the **k-means++ algorithm**. The optimal number of clusters was
+determined using various evaluation methods, including Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index,
+and the Elbow Method.
+
+#### Observations:
+
+- The raw data clustering resulted in less distinct clusters, as reflected by lower silhouette and Calinski-Harabasz
+  scores, and fluctuating Davies-Bouldin Index.
+- The elbow point was less pronounced, suggesting suboptimal cluster separability.
+
+#### Commands:
+
+To run clustering on raw data:
+
+```bash
+python main_clustering.py load clustering_raw --score_method silhouette
+python main_clustering.py load clustering_raw --score_method davies_bouldin
+python main_clustering.py load clustering_raw --score_method calinski_harabasz
+python main_clustering.py load clustering_raw --score_method elbow
+```
+
+#### Key Visualizations:
+
+1. **Optimal Clusters using Silhouette Method (Raw Data)**  
+   ![Raw Silhouette Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Silhouette%20Method.png)
+
+2. **Optimal Clusters using Davies-Bouldin Method (Raw Data)**  
+   ![Raw Davies-Bouldin Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Davies%20Bouldin%20Method.png)
+
+3. **Optimal Clusters using Calinski-Harabasz Method (Raw Data)**  
+   ![Raw Calinski-Harabasz Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Calinski%20Harabasz%20Method.png)
+
+4. **Optimal Clusters using Elbow Method (Raw Data)**  
+   ![Raw Elbow Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Elbow%20Method.png)
+
+---
+
 ### Clustering on Feature-Engineered Data
+
+Clustering was repeated on the feature-engineered dataset to evaluate the impact of preprocessing. Preprocessing steps
+included scaling, one-hot encoding, feature creation, and handling missing data.
+
+#### Observations:
+
+- The feature-engineered data resulted in more compact and well-separated clusters across all methods.
+- The optimal cluster count was more distinct, as seen in the Calinski-Harabasz and Elbow Method results.
+- The silhouette score was consistently higher, indicating better cluster quality.
+
+#### Commands:
+
+To run clustering on feature-engineered data:
+
+```bash
+python main_clustering.py load clustering_engineered --score_method silhouette
+python main_clustering.py load clustering_engineered --score_method davies_bouldin
+python main_clustering.py load clustering_engineered --score_method calinski_harabasz
+python main_clustering.py load clustering_engineered --score_method elbow
+```
+
+#### Key Visualizations:
+
+1. **Optimal Clusters using Silhouette Method (Feature-Engineered Data)**  
+   ![FE Silhouette Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Silhouette%20Method.png)
+
+2. **Optimal Clusters using Davies-Bouldin Method (Feature-Engineered Data)**  
+   ![FE Davies-Bouldin Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Davies%20Bouldin%20Method.png)
+
+3. **Optimal Clusters using Calinski-Harabasz Method (Feature-Engineered Data)**  
+   ![FE Calinski-Harabasz Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Calinski%20Harabasz%20Method.png)
+
+4. **Optimal Clusters using Elbow Method (Feature-Engineered Data)**  
+   ![FE Elbow Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Elbow%20Method.png)
+
+5. **Cluster Feature Heatmap - Silhouette Method (Feature-Engineered Data)**  
+   ![FE Heatmap - Silhouette](files/clustering/FE%20-%20Cluster%20Feature%20Heatmap%20-%20Silhouette%20Method.png)
+
+---
 
 ### Comparison of Clustering Results
 
 #### Raw vs Feature-Engineered Data
 
+The feature-engineered dataset showed significant improvements across all evaluation methods:
+
+- **Silhouette Score**: Higher scores for feature-engineered data indicate better cluster compactness and separation.
+- **Davies-Bouldin Index**: Lower scores for feature-engineered data demonstrate more compact and well-separated
+  clusters.
+- **Calinski-Harabasz Index**: Higher scores for feature-engineered data reflect better-defined clusters.
+- **Elbow Method**: The elbow point was more distinct for the feature-engineered data, suggesting clearer separability.
+
 #### Evaluation Metrics and Insights
 
-### Visualizations
+| Metric                  | Raw Data              | Feature-Engineered Data |
+|-------------------------|-----------------------|-------------------------|
+| Silhouette Score        | Lower and less stable | Higher and more stable  |
+| Davies-Bouldin Index    | Higher (less compact) | Lower (more compact)    |
+| Calinski-Harabasz Index | Less distinct peaks   | More distinct peaks     |
+| Elbow Method            | Subtle elbow point    | Pronounced elbow point  |
 
-### Conclusion and Future Work
+**Insights:**
+
+- Feature engineering enhanced cluster compactness and separability.
+- Preprocessing made clustering results more interpretable and robust.
+
+---
+
+### Conclusion
+
+Clustering results improved significantly after feature engineering. The feature-engineered data produced:
+
+1. Higher silhouette scores, indicating better cluster compactness.
+2. Lower Davies-Bouldin Index values, reflecting better-separated clusters.
+3. More distinct peaks in the Calinski-Harabasz Index, highlighting optimal cluster numbers.
+4. Clearer elbow points, emphasizing better separability.
  

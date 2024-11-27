@@ -97,30 +97,6 @@ class Clustering:
         return optimal_clusters
 
     @staticmethod
-    def silhouette_analysis(data, max_clusters=10):
-        """Determine optimal clusters using Silhouette Score."""
-        silhouette_scores = []
-        for k in range(2, max_clusters + 1):
-            kmeans = KMeans(n_clusters=k, random_state=42, init="k-means++")
-            labels = kmeans.fit_predict(data)
-            score = silhouette_score(data, labels)
-            silhouette_scores.append(score)
-
-        optimal_clusters = silhouette_scores.index(max(silhouette_scores)) + 2
-
-        # Visualization
-        plt.figure()
-        plt.plot(range(2, max_clusters + 1), silhouette_scores, marker='o')
-        plt.title("Silhouette Analysis")
-        plt.xlabel("Number of Clusters")
-        plt.ylabel("Silhouette Score")
-        plt.grid()
-        plt.show(block=True)
-
-        print(f"Optimal number of clusters based on Silhouette Score: {optimal_clusters}")
-        return optimal_clusters
-
-    @staticmethod
     def elbow_method(data, max_clusters=10):
         """Apply the Elbow Method to find the optimal number of clusters."""
         inertias = []
