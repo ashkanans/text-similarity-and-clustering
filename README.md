@@ -56,6 +56,25 @@ findings and results.
     - [Observations](#observations)
     - [Recommendations](#recommendations)
 
+- [Clustering](#clustering)
+    - [Introduction](#introduction)
+    - [Dataset Overview](#dataset-overview)
+    - [Methodology](#methodology)
+        - [Clustering Algorithm k-means++](#clustering-algorithm-k-means)
+        - [Methods for Determining Optimal Clusters](#methods-for-determining-optimal-clusters)
+            - [Silhouette Score](#silhouette-score)
+            - [Davies-Bouldin Index](#davies-bouldin-index)
+            - [Calinski-Harabasz Index](#calinski-harabasz-index)
+            - [Elbow Method](#elbow-method)
+    - [Feature Engineering](#feature-engineering)
+    - [Clustering on Raw Data](#clustering-on-raw-data)
+    - [Clustering on Feature-Engineered Data](#clustering-on-feature-engineered-data)
+    - [Comparison of Clustering Results](#comparison-of-clustering-results)
+        - [Raw vs Feature-Engineered Data](#raw-vs-feature-engineered-data)
+        - [Evaluation Metrics and Insights](#evaluation-metrics-and-insights)
+    - [Visualizations](#visualizations)
+    - [Conclusion and Future Work](#conclusion-and-future-work)
+
 ## Text Similarity
 
 This part aims to identify near-duplicate products within a dataset of Amazon product descriptions by implementing a
@@ -689,3 +708,47 @@ LSH, Naïve (brute-force), and DataSketch. Key steps and timings for each method
   concern.
 - **DataSketch**: Best suited for scenarios where speed is critical, and slight reductions in recall are acceptable.
 - **Naïve**: Only suitable for smaller datasets due to its poor scalability.
+
+## Clustering
+
+This project focuses on clustering the **California Housing Prices** dataset using the **k-means++ algorithm**. The
+optimal number of clusters is determined and compared using four different methods: Silhouette Score, Davies-Bouldin
+Index, Calinski-Harabasz Index, and the Elbow Method. Clustering is performed on both raw and feature-engineered data,
+with visualizations and metrics to evaluate the quality of the clusters and the impact of feature engineering.
+
+---
+
+### Introduction
+
+### Dataset Overview
+
+### Methodology
+
+#### Clustering Algorithm k-means++
+
+#### Methods for Determining Optimal Clusters
+
+##### Silhouette Score
+
+##### Davies-Bouldin Index
+
+##### Calinski-Harabasz Index
+
+##### Elbow Method
+
+### Feature Engineering
+
+### Clustering on Raw Data
+
+### Clustering on Feature-Engineered Data
+
+### Comparison of Clustering Results
+
+#### Raw vs Feature-Engineered Data
+
+#### Evaluation Metrics and Insights
+
+### Visualizations
+
+### Conclusion and Future Work
+ 
