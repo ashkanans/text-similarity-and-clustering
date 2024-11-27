@@ -1,11 +1,66 @@
 
 # Text Similarity and Clustering
 
-# Text Similarity
+The Text Similarity and Clustering project implements efficient methods like shingling, minwise hashing, and LSH to
+detect near-duplicate Amazon product descriptions and compares their performance to brute-force and library-based
+approaches. It also performs clustering on the California Housing Prices dataset, analyzing the impact of feature
+engineering on clustering quality and efficiency. Deliverables include code, reports, and visualizations summarizing
+findings and results.
 
-This project aims to identify near-duplicate products within a dataset of Amazon product descriptions by implementing a
-**nearest-neighbor search** using text-based methods. The task focuses on leveraging techniques such as **shingling**, *
-*minwise hashing**, and **locality-sensitive hashing (LSH)** to detect similarities in textual content efficiently.
+# Table of Contents
+
+- [Text Similarity](#text-similarity)
+    - [Approach Overview](#approach-overview)
+    - [LSH Pipeline](#lsh-pipeline)
+    - [Analyzing Amazon Product Descriptions](#analyzing-amazon-product-descriptions)
+    - [Preprocessing Descriptions for Near-Duplicate Search](#preprocessing-descriptions-for-near-duplicate-search)
+        - [Steps in Preprocessing](#steps-in-preprocessing)
+            - [1. Multi-Word Term Preservation](#1-multi-word-term-preservation)
+            - [2. Tokenization](#2-tokenization)
+            - [3. Punctuation and Symbol Removal](#3-punctuation-and-symbol-removal)
+            - [4. Handling Joined Terms](#4-handling-joined-terms)
+            - [5. Stopword Removal](#5-stopword-removal)
+            - [6. Token Processing (Stemming and Lemmatization)](#6-token-processing-stemming-and-lemmatization)
+            - [7. Multi-Word Term Restoration](#7-multi-word-term-restoration)
+        - [Example Preprocessing](#example-preprocessing)
+    - [Shingling Process](#shingling-process)
+        - [Implementation Details](#implementation-details)
+    - [Min-Hashing Process](#min-hashing-process)
+        - [Implementation Details](#implementation-details-1)
+    - [Finding Near-Duplicates (using LSH)](#finding-near-duplicates-using-lsh)
+        - [Implementation Details](#implementation-details-2)
+- [S-Curve Analysis for Parameter Optimization](#s-curve-analysis-for-parameter-optimization)
+    - [Purpose](#purpose)
+    - [Process](#process)
+    - [Results](#results)
+    - [Summary](#summary)
+- [Advantages of LSH](#advantages-of-lsh)
+- [Example Workflow with LSH](#example-workflow-with-lsh)
+    - [Step 1: Parameter Optimization with S-Curve Analysis](#step-1-parameter-optimization-with-s-curve-analysis)
+    - [Step 2: Generating Min-Hash Signatures](#step-2-generating-min-hash-signatures)
+    - [Step 3: Indexing Min-Hash Signatures](#step-3-indexing-min-hash-signatures)
+    - [Step 4: Identifying Near-Duplicates](#step-4-identifying-near-duplicates)
+- [Comparison of Naïve, LSH, and DataSketch Methods for Text Similarity](#comparison-of-naïve-lsh-and-datasketch-methods-for-text-similarity)
+    - [1. Venn Diagram: Overlap in Detected Similar Pairs](#1-venn-diagram-overlap-in-detected-similar-pairs)
+    - [2. Jaccard Similarity Box Plot](#2-jaccard-similarity-box-plot)
+    - [3. Precision, Recall, and F1-Score Comparison](#3-precision-recall-and-f1-score-comparison)
+    - [4. Cumulative Distribution of Jaccard Similarities](#4-cumulative-distribution-of-jaccard-similarities)
+    - [5. Jaccard Similarity Heatmaps](#5-jaccard-similarity-heatmaps)
+    - [6. Jaccard Similarity Distribution](#6-jaccard-similarity-distribution)
+- [Summary](#summary-1)
+- [Execution Time and Performance Comparison](#execution-time-and-performance-comparison)
+    - [1. LSH Technique](#1-lsh-technique)
+    - [2. Naïve (Brute-Force) Technique](#2-naïve-brute-force-technique)
+    - [3. DataSketch Technique](#3-datasketch-technique)
+    - [Comparison Summary](#comparison-summary)
+    - [Observations](#observations)
+    - [Recommendations](#recommendations)
+
+## Text Similarity
+
+This part aims to identify near-duplicate products within a dataset of Amazon product descriptions by implementing a
+**nearest-neighbor search** using text-based methods. The task focuses on leveraging techniques such as **shingling**,
+**minwise hashing**, and **locality-sensitive hashing (LSH)** to detect similarities in textual content efficiently.
 
 ### Approach Overview
 
