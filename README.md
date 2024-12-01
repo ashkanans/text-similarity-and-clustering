@@ -117,7 +117,12 @@ For example:
 
 ### Preprocessing Descriptions for Near-Duplicate Search
 
-When scraping Amazon for PC or laptop listings, the scraped data is saved as a file named `computer_results_default.tsv` in the `data/raw` directory. To address the near-duplicate search problem, we perform the search in two ways:
+When scraping Amazon for PC or laptop listings, the scraped data is saved as a file
+named `laptops_results_2024-11-23.tsv` in the `data/raw` directory.
+Upon cloning the repository you have to unrar the raw.rar and make sure the file `laptops_results_2024-11-23.tsv` exists
+in `data/raw`.
+
+To address the near-duplicate search problem, we perform the search in two ways:
 
 1. **On raw descriptions**: Comparing the unprocessed descriptions directly.
 2. **On preprocessed descriptions**: Applying preprocessing to standardize and clean the descriptions before comparison.
@@ -227,14 +232,6 @@ ASUS Expertbook i5-1335u 4.6 GHz 15.6 pollici FHD Ram 16 Gb Ddr4 Ssd Nvme 512 Gb
 
 ---
 
-### **Key Takeaways**
-
-- Preprocessing helps standardize descriptions for better near-duplicate detection.
-- The `TextPreprocessor` class ensures consistent tokenization, cleaning, and normalization.
-- Numeric values, abbreviations, and multi-word terms are carefully preserved to maintain essential context.
-
----
-
 #### **Impact on Near-Duplicate Search**
 
 Preprocessing standardizes the descriptions, potentially may improve the accuracy of near-duplicate detection. We will investigate this in for each of the near-duplicate search we perform.
@@ -272,15 +269,9 @@ The shingling process involves transforming document descriptions into sets of f
    - Each document is represented as a set of unique shingles.
    - The output is a list where each entry corresponds to the set of shingles for a single document.
 
-4. **Optional Sorting**:
-   - The `sort_shingles` method provides an option to sort the shingles for debugging or visualization purposes.
-
-#### Advantages of This Approach
+#### Why This Approach?
 - **Flexibility**: Supports both character-level and token-level shingles, allowing adaptation to the type of input data and the granularity of similarity detection.
 - **Compact Representation**: By using sets, duplicate shingles within the same document are avoided, optimizing storage and processing.
-- **Order Sensitivity**: Shingles inherently capture the order of characters or tokens, making the method robust to textual rearrangements.
-
-This shingling implementation serves as the foundational step for the Min-Hashing and Locality-Sensitive Hashing (LSH) processes, ensuring efficient and scalable similarity detection.
 
 ### Min-Hashing Process
 
@@ -392,7 +383,7 @@ The `LSH` class implements this process by using hash tables and banding techniq
 
 #### **Purpose**
 
-The S-curve analysis is conducted to optimize the parameters of the LSH algorithm (\( r \): rows per band, \( b \):
+The S-curve analysis is conducted to optimize the parameters of the LSH algorithm r : rows per band, b :
 number of bands) for achieving a balance between false positives and false negatives. This ensures effective similarity
 detection while maintaining computational efficiency.
 
@@ -403,15 +394,15 @@ detection while maintaining computational efficiency.
 1. **Generating S-Curves**:
     - Multiple S-curves are plotted for various \( r, b \) combinations, illustrating the probability of candidate
       selection as a function of Jaccard similarity.
-    - Steeper slopes at the similarity threshold (\( s = 0.8 \)) indicate better performance in distinguishing similar
+   - Steeper slopes at the similarity threshold \( s = 0.8 \) indicate better performance in distinguishing similar
       and dissimilar pairs.
 
 2. **Parameter Tuning**:
-    - The optimal \( r, b \) combination is identified as the one that maximizes the slope of the S-curve at \( s =
-      0.8 \).
+    - The optimal \( r, b \) combination is identified as the one that maximizes the slope of the S-curve at s =
+      0.8 .
     - Two cases were explored:
-        - **Moderate Parameters (\( r = 16, b = 20 \))**: Faster execution with acceptable accuracy.
-        - **High Parameters (\( r = 20, b = 50 \))**: Improved accuracy but slower due to computational overhead.
+        - **Moderate Parameters ( r = 16, b = 20 )**: Faster execution with acceptable accuracy.
+        - **High Parameters ( r = 20, b = 50 )**: Improved accuracy but slower due to computational overhead.
 
 ---
 
@@ -434,7 +425,7 @@ detection while maintaining computational efficiency.
 
 3. **Comparison of Moderate and High Parameters**
     - **Observation**: The difference between the two settings is shown in the figure below. The red curve (\( r=20,
-      b=50 \)) is steeper at the threshold, offering better precision, while the blue curve (\( r=16, b=20 \)) provides
+      b=50 \)) is steeper at the threshold, offering better precision, while the blue curve ( r=16, b=20 ) provides
       a more computationally efficient solution with a slightly lower slope.
 
    ![Difference Between (r=16, b=20) and (r=20, b=50)](files/text_similarity/the%20difference%20between%20different%20(r,b)%20pairs%20-%20(r=16,b=20)%20vs%20(r=20,%20b=50).png)
@@ -443,11 +434,11 @@ detection while maintaining computational efficiency.
 
 #### **Summary**
 
-- **Moderate Parameters (\( r = 16, b = 20 \))**:
+- **Moderate Parameters ( r = 16, b = 20 )**:
     - Faster execution, suitable for large datasets where computational cost is a concern.
     - A good trade-off between accuracy and efficiency.
 
-- **High Parameters (\( r = 20, b = 50 \))**:
+- **High Parameters ( r = 20, b = 50 )**:
     - Higher precision, capturing more near-duplicates, but slower execution.
     - Useful in scenarios where accuracy is critical, and computation time is less of a concern.
 
@@ -490,7 +481,7 @@ initial parameter tuning to the final output.
 #### **Step 2: Generating Min-Hash Signatures**
 
 - After parameter optimization, Min-Hash signatures are generated for the input shingle sets.
-- The number of hash functions is calculated as \( r \times b \), ensuring the signatures align with the chosen
+- The number of hash functions is calculated as \( r x b \), ensuring the signatures align with the chosen
   parameters.
 - Min-Hash signatures provide a compact representation of the input data, enabling efficient similarity computations.
 
@@ -542,11 +533,27 @@ The Venn diagrams show the overlap in similar pairs detected by different method
 
 #### 2. Jaccard Similarity Box Plot
 
-The box plot compares the distribution of Jaccard similarity scores for the three methods:
+The box plot illustrates the distribution of Jaccard similarity scores for the three methods used to detect
+near-duplicate documents:
 
-- **Naïve** has a wider range of scores, with a few outliers near 1.0.
-- **LSH and DataSketch** exhibit a more concentrated range around higher similarity values, reflecting their optimized
-  nature for capturing higher similarities.
+- **Naïve (Brute-force):**
+    - The Jaccard similarity scores show a wide range, indicating variability in how well near-duplicates were
+      identified.
+    - Outliers close to 1.0 represent exact or near-exact matches, while the lower bound highlights some pairs with
+      minimum similarity close to the threshold of 0.8.
+    - This range reflects the comprehensive but computationally intensive nature of brute-force comparison.
+
+- **LSH (Locality Sensitive Hashing):**
+    - The Jaccard similarities are more concentrated around higher values, demonstrating that the algorithm effectively
+      captures document pairs with higher similarity.
+    - The narrower interquartile range (IQR) and higher median compared to the Naïve method suggest more consistent
+      results with fewer extreme variations.
+
+- **DataSketch (LSH Implementation):**
+    - Similar to LSH, this method produces a focused range of similarity scores but exhibits slightly more spread than
+      LSH, potentially due to differences in implementation or parameter tuning.
+    - The performance is comparable to LSH, highlighting its robustness and computational efficiency in identifying
+      near-duplicates.
 
 ![Jaccard Similarity Box Plot](files/text_similarity/Jaccard%20Similarity%20Box%20Plot.png)
 
@@ -565,11 +572,7 @@ The bar plots highlight performance metrics:
 
 #### 4. Cumulative Distribution of Jaccard Similarities
 
-The cumulative distribution plot compares how similarity scores are distributed:
-
-- **Naïve** leads in identifying pairs with scores above 0.95.
-- **LSH and DataSketch** produce more consistent results over the full range of similarities, with smoother cumulative
-  curves.
+The cumulative distribution plot compares how similarity scores are distributed
 
 ![Cumulative Distribution of Jaccard Similarities](files/text_similarity/Cumulative%20Distribution%20of%20Jaccard%20Similarities.png)
 
@@ -577,10 +580,7 @@ The cumulative distribution plot compares how similarity scores are distributed:
 
 #### 5. Jaccard Similarity Heatmaps
 
-The heatmaps visualize pairwise Jaccard similarities:
-
-- **Naïve** shows denser clusters, reflecting all pair comparisons.
-- **LSH and DataSketch** produce sparser but well-distributed similarities, focusing on near-duplicates.
+The heatmaps visualize pairwise Jaccard similarities
 
 - **Naïve**:
   ![Naïve Jaccard Similarity Heatmap](files/text_similarity/Naïve%20(brute-force)%20Jaccard%20Similarity%20Heatmap.png)
@@ -867,77 +867,81 @@ Clustering on the raw dataset was performed using the **k-means++ algorithm**. T
 determined using various evaluation methods, including Silhouette Score, Davies-Bouldin Index, Calinski-Harabasz Index,
 and the Elbow Method.
 
-#### Observations:
-
-- The raw data clustering resulted in less distinct clusters, as reflected by lower silhouette and Calinski-Harabasz
-  scores, and fluctuating Davies-Bouldin Index.
-- The elbow point was less pronounced, suggesting suboptimal cluster separability.
-
 #### Commands:
 
-To run clustering on raw data:
+To run clustering on raw data we have to first `load` the data, pass `clustering_raw` and our desired `score_method`:
 
 ```bash
 python main_clustering.py load clustering_raw --score_method silhouette
-python main_clustering.py load clustering_raw --score_method davies_bouldin
-python main_clustering.py load clustering_raw --score_method calinski_harabasz
-python main_clustering.py load clustering_raw --score_method elbow
 ```
 
-#### Key Visualizations:
+```bash
+python main_clustering.py load clustering_raw --score_method davies_bouldin
+```
 
-1. **Optimal Clusters using Silhouette Method (Raw Data)**  
-   ![Raw Silhouette Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Silhouette%20Method.png)
+```bash
+python main_clustering.py load clustering_raw --score_method calinski_harabasz
+```
 
-2. **Optimal Clusters using Davies-Bouldin Method (Raw Data)**  
-   ![Raw Davies-Bouldin Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Davies%20Bouldin%20Method.png)
-
-3. **Optimal Clusters using Calinski-Harabasz Method (Raw Data)**  
-   ![Raw Calinski-Harabasz Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Calinski%20Harabasz%20Method.png)
-
-4. **Optimal Clusters using Elbow Method (Raw Data)**  
-   ![Raw Elbow Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Elbow%20Method.png)
-
----
+```bash
+python main_clustering.py load clustering_raw --score_method elbow
+```
 
 ### Clustering on Feature-Engineered Data
 
 Clustering was repeated on the feature-engineered dataset to evaluate the impact of preprocessing. Preprocessing steps
 included scaling, one-hot encoding, feature creation, and handling missing data.
 
-#### Observations:
-
-- The feature-engineered data resulted in more compact and well-separated clusters across all methods.
-- The optimal cluster count was more distinct, as seen in the Calinski-Harabasz and Elbow Method results.
-- The silhouette score was consistently higher, indicating better cluster quality.
 
 #### Commands:
 
-To run clustering on feature-engineered data:
+Just as we have done for raw data, to run clustering on feature-engineered data we have to first `load` the data,
+pass `clustering_engineered` and our desired `score_method`:
 
 ```bash
 python main_clustering.py load clustering_engineered --score_method silhouette
+```
+
+```bash
 python main_clustering.py load clustering_engineered --score_method davies_bouldin
+```
+
+```bash
 python main_clustering.py load clustering_engineered --score_method calinski_harabasz
+```
+
+```bash
 python main_clustering.py load clustering_engineered --score_method elbow
 ```
 
 #### Key Visualizations:
 
-1. **Optimal Clusters using Silhouette Method (Feature-Engineered Data)**  
-   ![FE Silhouette Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Silhouette%20Method.png)
+| **Method**                   | **Raw Data**                                                                                                              | **Feature-Engineered Data**                                                                                             |
+|------------------------------|---------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| **Silhouette Method**        | ![Raw Silhouette Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Silhouette%20Method.png)                 | ![FE Silhouette Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Silhouette%20Method.png)                 |
+| **Optimal Clusters**         | <p align="center"><b>2</b></p>                                                                                            | <p align="center"><b>6</b></p>                                                                                          |
+| **Davies-Bouldin Method**    | ![Raw Davies-Bouldin Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Davies%20Bouldin%20Method.png)       | ![FE Davies-Bouldin Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Davies%20Bouldin%20Method.png)       |
+| **Optimal Clusters**         | <p align="center"><b>5</b></p>                                                                                            | <p align="center"><b>10</b></p>                                                                                         |
+| **Calinski-Harabasz Method** | ![Raw Calinski-Harabasz Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Calinski%20Harabasz%20Method.png) | ![FE Calinski-Harabasz Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Calinski%20Harabasz%20Method.png) |
+| **Optimal Clusters**         | <p align="center"><b>49</b></p>                                                                                           | <p align="center"><b>5</b></p>                                                                                          |
+| **Elbow Method**             | ![Raw Elbow Method](files/clustering/Raw%20-%20Optimal%20Clusters%20using%20Elbow%20Method.png)                           | ![FE Elbow Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Elbow%20Method.png)                           |
+| **Optimal Clusters**         | <p align="center"><b>7</b></p>                                                                                            | <p align="center"><b>10</b></p>                                                                                         |
 
-2. **Optimal Clusters using Davies-Bouldin Method (Feature-Engineered Data)**  
-   ![FE Davies-Bouldin Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Davies%20Bouldin%20Method.png)
+--- 
 
-3. **Optimal Clusters using Calinski-Harabasz Method (Feature-Engineered Data)**  
-   ![FE Calinski-Harabasz Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Calinski%20Harabasz%20Method.png)
+| **Visualization Type** | **Raw Data**                                                                                 | **Feature-Engineered Data**                                                                |
+|------------------------|----------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
+| **2D Visualization**   | ![Raw 2D Visualization](files/clustering/Raw%20-%20Visualizing%20Data%20Labels%20-%202D.png) | ![FE 2D Visualization](files/clustering/FE%20-%20Visualizing%20Data%20Labels%20-%202D.png) |
+| **3D Visualization**   | ![Raw 3D Visualization](files/clustering/Raw%20-%20Visualizing%20Data%20Labels%20-%203D.png) | ![FE 3D Visualization](files/clustering/FE%20-%20Visualizing%20Data%20Labels%20-%203D.png) |
 
-4. **Optimal Clusters using Elbow Method (Feature-Engineered Data)**  
-   ![FE Elbow Method](files/clustering/FE%20-%20Optimal%20Clusters%20using%20Elbow%20Method.png)
+#### Observations:
 
-5. **Cluster Feature Heatmap - Silhouette Method (Feature-Engineered Data)**  
-   ![FE Heatmap - Silhouette](files/clustering/FE%20-%20Cluster%20Feature%20Heatmap%20-%20Silhouette%20Method.png)
+- The raw data clustering resulted in less distinct clusters, as reflected by lower silhouette and Calinski-Harabasz
+  scores, and fluctuating Davies-Bouldin Index.
+- The elbow point was less pronounced, suggesting suboptimal cluster separability.
+- The feature-engineered data resulted in more compact and well-separated clusters across all methods.
+- The optimal cluster count was more distinct, as seen in the Calinski-Harabasz and Elbow Method results.
+- The silhouette score was consistently higher, indicating better cluster quality.
 
 ---
 
@@ -977,4 +981,6 @@ Clustering results improved significantly after feature engineering. The feature
 2. Lower Davies-Bouldin Index values, reflecting better-separated clusters.
 3. More distinct peaks in the Calinski-Harabasz Index, highlighting optimal cluster numbers.
 4. Clearer elbow points, emphasizing better separability.
+5. Clustering on raw data, in all the executions was faster (having lower execution time) since it was performed on data
+   with lower dimension and less number of data.
  

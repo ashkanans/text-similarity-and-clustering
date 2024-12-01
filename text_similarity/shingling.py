@@ -40,12 +40,3 @@ class Shingling:
             shingles_list.append(shingles)
 
         return shingles_list
-
-    def sort_shingles(self):
-        """
-        Sorts the shingles and returns the sorted list.
-
-        Returns:
-            list: A sorted list of shingles.
-        """
-        return sorted(self.shingles)

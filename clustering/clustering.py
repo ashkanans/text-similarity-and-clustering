@@ -85,13 +85,13 @@ class Clustering:
             raise ValueError("Unsupported method. Use a valid method.")
 
         # Plot scores for visual analysis
-        plt.figure()
-        plt.plot(range_values, scores, marker='o')
-        plt.title(f"Optimal Clusters using {method.replace('_', ' ').title()} Method")
-        plt.xlabel("Number of Clusters")
-        plt.ylabel("Score")
-        plt.grid()
-        plt.show(block=True)
+        # plt.figure()
+        # plt.plot(range_values, scores, marker='o')
+        # plt.title(f"Optimal Clusters using {method.replace('_', ' ').title()} Method")
+        # plt.xlabel("Number of Clusters")
+        # plt.ylabel("Score")
+        # plt.grid()
+        # plt.show(block=True)
 
         print(f"Optimal number of clusters based on {method.replace('_', ' ').title()}: {optimal_clusters}")
         return optimal_clusters
